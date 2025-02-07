@@ -14,7 +14,7 @@ from viam.utils import ValueTypes
 
 
 class Apriltag(PoseTracker, EasyResource):
-    MODEL: ClassVar[Model] = Model(ModelFamily("luddite", "apriltag"), "apriltag")
+    MODEL: ClassVar[Model] = Model(ModelFamily("luddite", "apriltag"), "tracker")
 
     @classmethod
     def new(

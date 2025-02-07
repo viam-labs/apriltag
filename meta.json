@@ -7,7 +7,7 @@
   "models": [
     {
       "api": "rdk:component:pose_tracker",
-      "model": "luddite:apriltag:apriltag",
+      "model": "luddite:apriltag:tracker",
       "short_description": "Provide a short (100 characters or less) description of this model here",
       "markdown_link": "README.md#model-ludditeapriltagapriltag"
     }
