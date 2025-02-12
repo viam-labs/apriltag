@@ -1,25 +1,31 @@
 import asyncio
-from typing import (Any, ClassVar, Dict, Final, List, Mapping, Optional,
-                    Sequence)
+from typing import (Any, ClassVar, Dict, List, Mapping, Optional, Sequence, cast)
 
 from typing_extensions import Self
-from viam.components.pose_tracker import *
+from viam.components.pose_tracker import PoseTracker
+from viam.components.camera import Camera
 from viam.module.module import Module
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import Geometry, PoseInFrame, ResourceName
 from viam.resource.base import ResourceBase
 from viam.resource.easy_resource import EasyResource
 from viam.resource.types import Model, ModelFamily
-from viam.utils import ValueTypes
+from viam.utils import struct_to_dict, ValueTypes
+from viam.media.utils.pil import viam_to_pil_image
 
+from PIL import Image
+import apriltag 
+import numpy as np
+import cv2
+
+# required attributes
+cam_attr = "camera_name"
 
 class Apriltag(PoseTracker, EasyResource):
     MODEL: ClassVar[Model] = Model(ModelFamily("luddite", "apriltag"), "tracker")
 
     @classmethod
-    def new(
-        cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ) -> Self:
+    def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
         """This method creates a new instance of this PoseTracker component.
         The default implementation sets the name from the `config` parameter and then calls `reconfigure`.
 
@@ -43,17 +49,20 @@ class Apriltag(PoseTracker, EasyResource):
         Returns:
             Sequence[str]: A list of implicit dependencies
         """
-        return []
+        cam = struct_to_dict(config.attributes).get(cam_attr)
+        if cam is None:
+            raise Exception("Missing required " + cam_attr + " attribute.")
+        return [str(cam)]
 
-    def reconfigure(
-        self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ):
+    def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         """This method allows you to dynamically update your service when it receives a new `config` object.
 
         Args:
             config (ComponentConfig): The new configuration
             dependencies (Mapping[ResourceName, ResourceBase]): Any dependencies (both implicit and explicit)
         """
+        cam = struct_to_dict(config.attributes).get(cam_attr)
+        self.camera = cast(Camera, dependencies.get(Camera.get_resource_name(str(cam))))
         return super().reconfigure(config, dependencies)
 
     async def get_poses(
@@ -73,11 +82,19 @@ class Apriltag(PoseTracker, EasyResource):
         timeout: Optional[float] = None,
         **kwargs
     ) -> Mapping[str, ValueTypes]:
-        raise NotImplementedError()
+        cam_image = await self.camera.get_image(mime_type="image/jpeg")
 
-    async def get_geometries(
-        self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None
-    ) -> List[Geometry]:
+        # Convert ViamImage to OpenCV format
+        image_pil = viam_to_pil_image(cam_image)
+        image_cv = np.array(image_pil)
+        image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2GRAY)  # Convert to grayscale for apriltag
+
+        # Initialize AprilTag detector - can include multiple families of tags in comma separated string
+        detector = apriltag.Detector(apriltag.DetectorOptions(families="tag36h11"))
+        tags = detector.detect(image_cv)
+        print(tags)
+
+    async def get_geometries(self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None) -> List[Geometry]:
         raise NotImplementedError()
 
 
