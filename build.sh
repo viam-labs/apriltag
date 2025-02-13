@@ -9,5 +9,5 @@ if ! $PYTHON -m pip install pyinstaller -Uqq; then
     exit 1
 fi
 
-$PYTHON -m PyInstaller --onefile --add-binary="apriltag" src/main.py
+$PYTHON -m PyInstaller --onefile src/main.py
 tar -czvf dist/archive.tar.gz ./dist/main

@@ -1,5 +1,5 @@
 viam-sdk==0.39.0
-apriltag
+dt-apriltags
 numpy
 opencv-python
 pillow

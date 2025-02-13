@@ -14,7 +14,7 @@ from viam.utils import struct_to_dict, ValueTypes
 from viam.media.utils.pil import viam_to_pil_image
 
 from PIL import Image
-import apriltag 
+import dt_apriltags as apriltag
 import numpy as np
 import cv2
 
@@ -82,17 +82,20 @@ class Apriltag(PoseTracker, EasyResource):
         timeout: Optional[float] = None,
         **kwargs
     ) -> Mapping[str, ValueTypes]:
-        cam_image = await self.camera.get_image(mime_type="image/jpeg")
+        try:
+            cam_image = await self.camera.get_image(mime_type="image/jpeg")
 
-        # Convert ViamImage to OpenCV format
-        image_pil = viam_to_pil_image(cam_image)
-        image_cv = np.array(image_pil)
-        image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2GRAY)  # Convert to grayscale for apriltag
+            # convert ViamImage to OpenCV format
+            image_pil = viam_to_pil_image(cam_image)
+            image_cv = np.array(image_pil)
+            image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2GRAY)  # Convert to grayscale for apriltag
 
-        # Initialize AprilTag detector - can include multiple families of tags in comma separated string
-        detector = apriltag.Detector(apriltag.DetectorOptions(families="tag36h11"))
-        tags = detector.detect(image_cv)
-        print(tags)
+            # initialize AprilTag detector - can include multiple families of tags in comma separated string
+            detector = apriltag.Detector(families="tag16h5")
+            tags = detector.detect(image_cv)
+            print(tags)
+        except Exception as e:
+            raise e
 
     async def get_geometries(self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None) -> List[Geometry]:
         raise NotImplementedError()
