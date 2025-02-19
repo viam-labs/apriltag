@@ -6,14 +6,14 @@ from viam.components.pose_tracker import PoseTracker
 from viam.components.camera import Camera
 from viam.module.module import Module
 from viam.proto.app.robot import ComponentConfig
-from viam.proto.common import Geometry, PoseInFrame, ResourceName
+from viam.proto.common import Geometry, PoseInFrame, Pose, ResourceName
 from viam.resource.base import ResourceBase
 from viam.resource.easy_resource import EasyResource
 from viam.resource.types import Model, ModelFamily
+from viam.logging import getLogger
 from viam.utils import struct_to_dict, ValueTypes
 from viam.media.utils.pil import viam_to_pil_image
 
-from PIL import Image
 import dt_apriltags as apriltag
 import numpy as np
 import cv2
@@ -21,12 +21,14 @@ import cv2
 # required attributes
 cam_attr = "camera_name"
 
+LOGGER = getLogger(__name__)
+
 class Apriltag(PoseTracker, EasyResource):
     MODEL: ClassVar[Model] = Model(ModelFamily("luddite", "apriltag"), "tracker")
 
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
-        """This method creates a new instance of this PoseTracker component.
+        """This method creates a new instance of the Apriltag PoseTracker component.
         The default implementation sets the name from the `config` parameter and then calls `reconfigure`.
 
         Args:
@@ -83,17 +85,30 @@ class Apriltag(PoseTracker, EasyResource):
         **kwargs
     ) -> Mapping[str, ValueTypes]:
         try:
-            cam_image = await self.camera.get_image(mime_type="image/jpeg")
+            # need to get the camera intrinsics
+            properties = await self.camera.get_properties()
+            intrinsics = [
+                properties.intrinsic_parameters.focal_x_px,
+                properties.intrinsic_parameters.focal_y_px,
+                properties.intrinsic_parameters.center_x_px,
+                properties.intrinsic_parameters.center_y_px
+            ]
 
-            # convert ViamImage to OpenCV format
-            image_pil = viam_to_pil_image(cam_image)
-            image_cv = np.array(image_pil)
-            image_cv = cv2.cvtColor(image_cv, cv2.COLOR_RGB2GRAY)  # Convert to grayscale for apriltag
+            # get an image from camera resource and convert it to OpenCV format
+            cam_image = await self.camera.get_image()
+            color_image = cv2.cvtColor(np.array(viam_to_pil_image(cam_image)), cv2.COLOR_RGB2GRAY)  # convert to grayscale
 
             # initialize AprilTag detector - can include multiple families of tags in comma separated string
             detector = apriltag.Detector(families="tag16h5")
-            tags = detector.detect(image_cv)
-            print(tags)
+            tags = detector.detect(color_image, estimate_tag_pose=True, camera_params=intrinsics, tag_size=.0225)
+            LOGGER.info(tags)
+
+            for tag in tags:
+                # TODO: this name is going to need to change to the correct frame name
+                # TODO: make sure the pose is aligned with the camera frame
+                PoseInFrame(reference_frame="cam", pose=Pose)    
+                
+
         except Exception as e:
             raise e
 
