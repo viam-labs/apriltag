@@ -4,3 +4,4 @@ numpy
 opencv-python
 pillow
 typing-extensions
+scipy

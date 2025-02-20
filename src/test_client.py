@@ -1,7 +1,6 @@
 import asyncio
 
 from viam.robot.client import RobotClient
-from viam.rpc.dial import Credentials, DialOptions
 from viam.components.pose_tracker import PoseTracker
 
 async def connect():
@@ -19,7 +18,8 @@ async def main():
     
     # pose_tracker
     pose_tracker = PoseTracker.from_robot(machine, "pose_tracker")
-    pose_tracker_return_value = await pose_tracker.do_command(None)
+    poses = await pose_tracker.get_poses(None)
+    print(poses)
 
     # Don't forget to close the machine when you're done!
     await machine.close()

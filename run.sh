@@ -35,3 +35,8 @@ echo "Virtualenv found/created. Installing/upgrading Python packages..."
 if ! $PYTHON -m pip install -r requirements.txt -Uqq; then
     exit 1
 fi
+
+# Be sure to use `exec` so that termination signals reach the python process,
+# or handle forwarding termination signals manually
+echo "Starting module..."
+exec $PYTHON -m src.main $@
