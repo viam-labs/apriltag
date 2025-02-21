@@ -123,13 +123,12 @@ class Apriltag(PoseTracker, EasyResource):
                 if len(body_names) == 0 or str(tag.tag_id) in body_names:
                     o = quaternion_to_orientation_vector(Rotation.from_matrix(tag.pose_R))
                     # TODO: this name is going to need to change to the correct frame name
-                    # need to flip the direction on the x and y detection values to align with the camera frame.
                     # also need to convert the returned positions from mm to m and the orientation's theta to degrees.
                     poses[str(tag.tag_id)] = PoseInFrame(
                         reference_frame="cam", 
                         pose=Pose(
-                            x=-tag.pose_t[0][0] * 1000,
-                            y=-tag.pose_t[1][0] * 1000,
+                            x=tag.pose_t[0][0] * 1000,
+                            y=tag.pose_t[1][0] * 1000,
                             z=tag.pose_t[2][0] * 1000, 
                             o_x=o.o_x,
                             o_y=o.o_y,
