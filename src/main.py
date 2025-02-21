@@ -2,6 +2,7 @@ import asyncio
 import dt_apriltags as apriltag
 import numpy as np
 import cv2
+import math
 
 from scipy.spatial.transform import Rotation
 from .spatialmath import quaternion_to_orientation_vector
@@ -21,8 +22,11 @@ from viam.logging import getLogger
 from viam.utils import struct_to_dict, ValueTypes
 from viam.media.utils.pil import viam_to_pil_image
 
+
 # required attributes
 cam_attr = "camera_name"
+family_attr = "tag_family"
+width_attr = "tag_width_mm"
 
 LOGGER = getLogger(__name__)
 
@@ -54,9 +58,14 @@ class Apriltag(PoseTracker, EasyResource):
         Returns:
             Sequence[str]: A list of implicit dependencies
         """
-        cam = struct_to_dict(config.attributes).get(cam_attr)
+        attrs = struct_to_dict(config.attributes)
+        cam = attrs.get(cam_attr)
         if cam is None:
             raise Exception("Missing required " + cam_attr + " attribute.")
+        if attrs.get(family_attr) is None:
+            raise Exception("Missing requried " + family_attr + " attribute.")
+        if attrs.get(width_attr) is None:
+            raise Exception("Missing requried " + width_attr + " attribute.")
         return [str(cam)]
 
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
@@ -66,8 +75,10 @@ class Apriltag(PoseTracker, EasyResource):
             config (ComponentConfig): The new configuration
             dependencies (Mapping[ResourceName, ResourceBase]): Any dependencies (both implicit and explicit)
         """
-        cam = struct_to_dict(config.attributes).get(cam_attr)
-        self.camera = cast(Camera, dependencies.get(Camera.get_resource_name(str(cam))))
+        attrs = struct_to_dict(config.attributes)
+        self.camera = cast(Camera, dependencies.get(Camera.get_resource_name(str(attrs.get(cam_attr)))))
+        self.tag_family = attrs.get(family_attr)
+        self.tag_width_mm = attrs.get(width_attr)
         return super().reconfigure(config, dependencies)
 
     async def get_poses(
@@ -102,8 +113,8 @@ class Apriltag(PoseTracker, EasyResource):
             color_image = cv2.cvtColor(np.array(viam_to_pil_image(cam_image)), cv2.COLOR_RGB2GRAY)  # convert to grayscale
 
             # initialize AprilTag detector - can include multiple families of tags in comma separated string
-            detector = apriltag.Detector(families="tag16h5")
-            tags = detector.detect(color_image, estimate_tag_pose=True, camera_params=intrinsics, tag_size=.0225)
+            detector = apriltag.Detector(families=self.tag_family)
+            tags = detector.detect(color_image, estimate_tag_pose=True, camera_params=intrinsics, tag_size=0.001*self.tag_width_mm)
             LOGGER.info(tags)
 
             poses = {}
@@ -112,17 +123,18 @@ class Apriltag(PoseTracker, EasyResource):
                 if len(body_names) == 0 or str(tag.tag_id) in body_names:
                     o = quaternion_to_orientation_vector(Rotation.from_matrix(tag.pose_R))
                     # TODO: this name is going to need to change to the correct frame name
-                    # need to flip the direction on the x and y detection values to align with the camera frame
+                    # need to flip the direction on the x and y detection values to align with the camera frame.
+                    # also need to convert the returned positions from mm to m and the orientation's theta to degrees.
                     poses[str(tag.tag_id)] = PoseInFrame(
                         reference_frame="cam", 
                         pose=Pose(
-                            x=-tag.pose_t[0][0],
-                            y=-tag.pose_t[1][0],
-                            z=tag.pose_t[2][0],
+                            x=-tag.pose_t[0][0] * 1000,
+                            y=-tag.pose_t[1][0] * 1000,
+                            z=tag.pose_t[2][0] * 1000, 
                             o_x=o.o_x,
                             o_y=o.o_y,
                             o_z=o.o_z,
-                            theta=o.theta
+                            theta=o.theta * 180 / math.pi
                         )
                     )        
             LOGGER.info(poses)
