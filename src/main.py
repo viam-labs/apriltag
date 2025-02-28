@@ -12,6 +12,7 @@ from typing_extensions import Self
 
 from viam.components.pose_tracker import PoseTracker
 from viam.components.camera import Camera
+from viam.media.video import CameraMimeType
 from viam.module.module import Module
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import Geometry, PoseInFrame, Pose, ResourceName
@@ -109,23 +110,23 @@ class Apriltag(PoseTracker, EasyResource):
             ]
 
             # get an image from camera resource and convert it to OpenCV format
-            cam_image = await self.camera.get_image()
-            color_image = cv2.cvtColor(np.array(viam_to_pil_image(cam_image)), cv2.COLOR_RGB2GRAY)  # convert to grayscale
+            cam_images = await self.camera.get_images()
+            for image in cam_images[0]:
+                if image.mime_type == CameraMimeType.JPEG:
+                    color_image = cv2.cvtColor(np.array(viam_to_pil_image(cam_images[0][0])), cv2.COLOR_RGB2GRAY)  # convert to grayscale
 
             # initialize AprilTag detector - can include multiple families of tags in comma separated string
             detector = apriltag.Detector(families=self.tag_family)
             tags = detector.detect(color_image, estimate_tag_pose=True, camera_params=intrinsics, tag_size=0.001*self.tag_width_mm)
-            LOGGER.info(tags)
 
             poses = {}
             for tag in tags:
                 #
                 if len(body_names) == 0 or str(tag.tag_id) in body_names:
                     o = quaternion_to_orientation_vector(Rotation.from_matrix(tag.pose_R))
-                    # TODO: this name is going to need to change to the correct frame name
-                    # also need to convert the returned positions from mm to m and the orientation's theta to degrees.
+                    # need to convert the returned positions from mm to m and the orientation's theta to degrees.
                     poses[str(tag.tag_id)] = PoseInFrame(
-                        reference_frame="cam", 
+                        reference_frame=self.camera.name, 
                         pose=Pose(
                             x=tag.pose_t[0][0] * 1000,
                             y=tag.pose_t[1][0] * 1000,
@@ -136,7 +137,6 @@ class Apriltag(PoseTracker, EasyResource):
                             theta=o.theta * 180 / math.pi
                         )
                     )        
-            LOGGER.info(poses)
             return poses
                 
         except Exception as e:
