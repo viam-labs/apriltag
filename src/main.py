@@ -32,7 +32,7 @@ width_attr = "tag_width_mm"
 LOGGER = getLogger(__name__)
 
 class Apriltag(PoseTracker, EasyResource):
-    MODEL: ClassVar[Model] = Model(ModelFamily("luddite", "apriltag"), "tracker")
+    MODEL: ClassVar[Model] = Model(ModelFamily("luddite", "apriltag"), "pose_tracker")
 
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:

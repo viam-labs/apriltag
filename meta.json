@@ -3,12 +3,12 @@
   "module_id": "luddite:apriltag",
   "visibility": "public",
   "url": "https://github.com/raybjork/apriltag",
-  "description": "Modular pose_tracker component: apriltag",
+  "description": "Use Apriltags with Viam",
   "models": [
     {
       "api": "rdk:component:pose_tracker",
-      "model": "luddite:apriltag:tracker",
-      "short_description": "A module to provide pose estimation using apriltags",
+      "model": "luddite:apriltag:pose_tracker",
+      "short_description": "A pose tracker component utilizing Apriltags",
       "markdown_link": "README.md"
     }
   ],
