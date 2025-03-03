@@ -1,4 +1,4 @@
-module main
+module apriltag
 
 go 1.23.2
 
@@ -37,7 +37,6 @@ require (
 	github.com/erikstmartin/go-testdb v0.0.0-20160219214506-8d10e4a1bae5 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
-	github.com/fullstorydev/grpcurl v1.8.6 // indirect
 	github.com/go-fonts/liberation v0.3.0 // indirect
 	github.com/go-gl/mathgl v1.0.0 // indirect
 	github.com/go-latex/latex v0.0.0-20230307184459-12ec69307ad9 // indirect
