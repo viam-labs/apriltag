@@ -31,9 +31,9 @@ const (
 
 var limits = []referenceframe.Limit{
 	// R3 Vector
-	{Min: -50, Max: 50},   // X(mm)
-	{Min: -100, Max: 100}, // Y(mm)
-	{Min: -50, Max: 50},   // Z(mm)
+	{Min: -500, Max: 500}, // X(mm)
+	{Min: -500, Max: 500}, // Y(mm)
+	{Min: -500, Max: 500}, // Z(mm)
 	// R3AA
 	{Min: -2 * math.Pi, Max: 2 * math.Pi}, // X
 	{Min: -2 * math.Pi, Max: 2 * math.Pi}, // Y
