@@ -26,8 +26,9 @@ import (
 const (
 	randSeed               = 0
 	orientationScaleFactor = 10.
-	iterations             = 10000
 )
+
+var iterations = 10000
 
 var limits = []referenceframe.Limit{
 	// R3 Vector
@@ -52,6 +53,24 @@ func DiscoverTags(ctx context.Context, poseTracker posetracker.PoseTracker) ([]s
 		tags = append(tags, key)
 	}
 	return tags, nil
+}
+
+func EstimateFramePoseWithNIterations(
+	ctx context.Context,
+	a arm.Arm,
+	pt posetracker.PoseTracker,
+	expectedTags []string,
+	calibrationPositions [][]referenceframe.Input,
+	seedPose spatialmath.Pose,
+	collectNewData bool,
+	nIterations int,
+) (spatialmath.Pose, error) {
+	iterations = nIterations
+	pose, err := EstimateFramePose(ctx, a, pt, expectedTags, calibrationPositions, seedPose, collectNewData)
+	if err != nil {
+		return nil, err
+	}
+	return pose, nil
 }
 
 func EstimateFramePose(
