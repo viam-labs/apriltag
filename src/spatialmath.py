@@ -7,7 +7,7 @@ import platform
 architecture = platform.machine()
 if architecture == 'x86_64':
     lib = cdll.LoadLibrary("./libviam_rust_utils-linux_x86_64.so")
-elif architecture == 'arm64':
+elif architecture == 'aarch64':
     lib = cdll.LoadLibrary("./libviam_rust_utils-linux_aarch64.so")
 else:
     raise ImportError(f"Unsupported architecture: {architecture}")
