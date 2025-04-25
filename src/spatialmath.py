@@ -1,5 +1,6 @@
 from ctypes import cdll, Structure, POINTER, c_double
 from viam.proto.common import Orientation
+from viam.logging import getLogger
 from scipy.spatial.transform import Rotation
 import platform
 
@@ -11,6 +12,7 @@ elif architecture == 'arm64':
 else:
     raise ImportError(f"Unsupported architecture: {architecture}")
 
+LOGGER = getLogger(__name__)
 
 class OrientationVector(Structure): 
     pass
@@ -19,9 +21,6 @@ class Quaternion(Structure):
     pass
 
 ov_array = c_double * 4
-
-from viam.logging import getLogger
-LOGGER = getLogger(__name__)
 
 lib.free_orientation_vector_memory.argtypes = (POINTER(OrientationVector),)
 lib.orientation_vector_from_quaternion.argtypes = (POINTER(Quaternion),)
