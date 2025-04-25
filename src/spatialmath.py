@@ -1,8 +1,16 @@
 from ctypes import cdll, Structure, POINTER, c_double
 from viam.proto.common import Orientation
 from scipy.spatial.transform import Rotation
+import platform
 
-lib = cdll.LoadLibrary("./libviam_rust_utils-linux_x86_64.so")
+architecture = platform.machine()
+if architecture == 'x86_64':
+    lib = cdll.LoadLibrary("./libviam_rust_utils-linux_x86_64.so")
+elif architecture == 'arm64':
+    lib = cdll.LoadLibrary("./libviam_rust_utils-linux_aarch64.so")
+else:
+    raise ImportError(f"Unsupported architecture: {architecture}")
+
 
 class OrientationVector(Structure): 
     pass
