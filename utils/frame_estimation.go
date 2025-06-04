@@ -88,7 +88,11 @@ func EstimateFramePose(
 	}
 	printWorldStatePoses(a, protobufToPoses(tagPosesFromFile), seedPose, expectedTags, calibrationPositionsFromFile)
 
-	sol, err := minimize(ctx, a.ModelFrame(), protobufToPoses(tagPosesFromFile), expectedTags, calibrationPositionsFromFile, seedPose)
+	aModel, err := a.Kinematics(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	sol, err := minimize(ctx, aModel, protobufToPoses(tagPosesFromFile), expectedTags, calibrationPositionsFromFile, seedPose)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +260,11 @@ func getTagPoses(
 }
 
 func averageJointPosition(ctx context.Context, a arm.Arm, n int) ([]referenceframe.Input, error) {
-	avg := make([]referenceframe.Input, len(a.ModelFrame().DoF()))
+	aModel, err := a.Kinematics(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	avg := make([]referenceframe.Input, len(aModel.DoF()))
 	for range n {
 		j, err := a.JointPositions(ctx, nil)
 		if err != nil {
@@ -287,7 +295,12 @@ func printWorldStatePoses(
 				continue
 			}
 			fmt.Printf("\tPose #%d\t", i)
-			armPose, err := a.ModelFrame().Transform(calibrationPositions[i])
+
+			aModel, err := a.Kinematics(context.Background())
+			if err != nil {
+				return err
+			}
+			armPose, err := aModel.Transform(calibrationPositions[i])
 			if err != nil {
 				fmt.Printf("\n")
 				return err
