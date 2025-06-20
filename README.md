@@ -29,3 +29,9 @@ The following attributes are available for `viam:universal-robots` arms:
 | `camera_name` | string | **Required** | The name of the camera to depend on. |
 | `tag_family` | string | **Required** | The Apriltag 'tag family' to detect. |
 | `tag_width_mm` | float | **Required** | The width of the tags to be detected, specified in mm. |
+
+### Generating Apriltags
+
+To get quickly started tracking poses of Apriltags the example file `tag36h11_1-30.pdf` can be printed and used with the example configuration above.  There exist a number of [online generators](https://shiqiliu-67.github.io/apriltag-generator/) that can be used to create similar files suitable to your specific needs.
+
+For more information about the Apriltag specification and how they can be used see the [AprilRobotics repo](https://github.com/aprilrobotics/apriltag).
