@@ -24,15 +24,16 @@ from viam.resource.types import Model, ModelFamily
 from viam.logging import getLogger
 from viam.utils import struct_to_dict, ValueTypes
 from viam.media.utils.pil import viam_to_pil_image
+from PIL import Image
 
 
 # required attributes
 cam_attr = "camera_name"
 family_attr = "tag_family"
 width_attr = "tag_width_mm"
-capturedir = os.path.join("root","viam","capture")
 
 LOGGER = getLogger(__name__)
+
 
 class Apriltag(PoseTracker, EasyResource):
     MODEL: ClassVar[Model] = Model(ModelFamily("luddite", "apriltag"), "pose_tracker")
@@ -114,13 +115,20 @@ class Apriltag(PoseTracker, EasyResource):
 
             # get an image from camera resource and convert it to OpenCV format
             cam_images = await self.camera.get_images()
+            gray_image = None
+            color_image = None
             for image in cam_images[0]:
                 if image.mime_type == CameraMimeType.JPEG:
-                    color_image = cv2.cvtColor(np.array(viam_to_pil_image(cam_images[0][0])), cv2.COLOR_RGB2GRAY)  # convert to grayscale
+                    color_image = cam_images[0][0].data
+                    gray_image = cv2.cvtColor(np.array(viam_to_pil_image(cam_images[0][0])), cv2.COLOR_RGB2GRAY)  # convert to grayscale
+
+            if gray_image is None or color_image is None:
+                raise Exception("camera had no jpeg images")
+                
 
             # initialize AprilTag detector - can include multiple families of tags in comma separated string
             detector = apriltag.Detector(families=self.tag_family)
-            tags = detector.detect(color_image, estimate_tag_pose=True, camera_params=intrinsics, tag_size=0.001*self.tag_width_mm)
+            tags = detector.detect(gray_image, estimate_tag_pose=True, camera_params=intrinsics, tag_size=0.001*self.tag_width_mm)
 
             poses = {}
             for tag in tags:
@@ -141,13 +149,17 @@ class Apriltag(PoseTracker, EasyResource):
                         )
                     )        
             time = datetime.datetime.utcnow().isoformat() + "Z"
-            root_path = os.path.join(capturedir,s.name,time)
+            viam_home = os.getenv("VIAM_HOME")
+            if viam_home is None:
+                raise Exception("VIAM_HOME not set")
+
+            capturedir = os.path.join(viam_home,"capture")
+            root_path = os.path.join(capturedir,self.name,time)
             os.makedirs(root_path)
             with open(os.path.join(root_path, "./color_image.jpeg"), 'wb') as f:
-                f.write(data)
-            color_image_arr = cv2.cvtColor(np.array(viam_to_pil_image(ret[0][0])), cv2.COLOR_RGB2GRAY)  # convert to grayscale
-            im = Image.fromarray(color_image_arr)
-            im.save(os.path.join(root_path, "./grayscale_image.jpeg"))
+                f.write(color_image)
+            im = Image.fromarray(gray_image)
+            im.save(os.path.join(root_path, "./gray_image.jpeg"))
             return poses
                 
         except Exception as e:
