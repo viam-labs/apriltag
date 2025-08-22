@@ -1,3 +1,5 @@
+import os
+import datetime
 import asyncio
 import dt_apriltags as apriltag
 import numpy as np
@@ -28,6 +30,7 @@ from viam.media.utils.pil import viam_to_pil_image
 cam_attr = "camera_name"
 family_attr = "tag_family"
 width_attr = "tag_width_mm"
+capturedir = os.path.join("root","viam","capture")
 
 LOGGER = getLogger(__name__)
 
@@ -137,6 +140,14 @@ class Apriltag(PoseTracker, EasyResource):
                             theta=o.theta * 180 / math.pi
                         )
                     )        
+            time = datetime.datetime.utcnow().isoformat() + "Z"
+            root_path = os.path.join(capturedir,s.name,time)
+            os.makedirs(root_path)
+            with open(os.path.join(root_path, "./color_image.jpeg"), 'wb') as f:
+                f.write(data)
+            color_image_arr = cv2.cvtColor(np.array(viam_to_pil_image(ret[0][0])), cv2.COLOR_RGB2GRAY)  # convert to grayscale
+            im = Image.fromarray(color_image_arr)
+            im.save(os.path.join(root_path, "./grayscale_image.jpeg"))
             return poses
                 
         except Exception as e:
