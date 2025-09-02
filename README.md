@@ -28,7 +28,7 @@ The following attributes are available for `viam:universal-robots` arms:
 | ---- | ---- | --------- | ----------- |
 | `camera_name` | string | **Required** | The name of the camera to depend on. |
 | `tag_family` | string | **Required** | The Apriltag 'tag family' to detect. |
-| `tag_width_mm` | float | **Required** | The width of the tags to be detected, specified in mm. |
+| `tag_width_mm` | float | **Required** | The width of the tags to be detected, measured from tag corner to tag corner and specified in mm. |
 
 ### Generating Apriltags
 
