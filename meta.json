@@ -1,13 +1,13 @@
 {
   "$schema": "https://dl.viam.dev/module.schema.json",
-  "module_id": "luddite:apriltag",
+  "module_id": "viam:apriltag",
   "visibility": "public",
-  "url": "https://github.com/raybjork/apriltag",
+  "url": "https://github.com/viam-labs/apriltag",
   "description": "Use Apriltags with Viam",
   "models": [
     {
       "api": "rdk:component:pose_tracker",
-      "model": "luddite:apriltag:pose_tracker",
+      "model": "viam:apriltag:pose_tracker",
       "short_description": "A pose tracker component utilizing Apriltags",
       "markdown_link": "README.md"
     }

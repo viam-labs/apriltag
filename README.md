@@ -1,4 +1,4 @@
-# [`apriltag` module](https://app.viam.com/module/luddite/apriltag) 
+# [`apriltag` module](https://app.viam.com/module/viam/apriltag) 
 
 A Viam module that uses apriltags as an implementation for a PoseTracker component.
 
