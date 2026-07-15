@@ -1,4 +1,4 @@
-viam-sdk==0.39.0
+viam-sdk==0.79.1
 dt-apriltags
 numpy
 opencv-python
