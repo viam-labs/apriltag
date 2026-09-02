@@ -9,6 +9,7 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/golang/geo/r3"
@@ -154,13 +155,13 @@ func minimize(
 		return cumSum / float64(len(tags))
 	}
 
-	solver, err := ik.CreateNloptSolver(limits, logger, iterations, false, false)
+	solver, err := ik.CreateNloptSolver(logger, iterations, false, false, 0)
 	if err != nil {
 		return nil, err
 	}
 
 	solutionGen := make(chan *ik.Solution, 1)
-	ikErr := make(chan error, 1)
+	solverErr := make(chan error, 1)
 
 	var activeSolvers sync.WaitGroup
 	defer activeSolvers.Wait()
@@ -169,11 +170,19 @@ func minimize(
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	var totalAttempts atomic.Int32
+	seedFloats := poseToFloats(seedPose)
+	limitsSlice := [][]referenceframe.Limit{limits}
+	wrappedLoss := func(_ context.Context, input []float64) float64 {
+		return lossFunction(input)
+	}
+
 	// Spawn the IK solver to generate solutions until done
 	utils.PanicCapturingGo(func() {
-		defer close(ikErr)
+		defer close(solverErr)
 		defer activeSolvers.Done()
-		ikErr <- solver.Solve(ctxWithCancel, solutionGen, poseToFloats(seedPose), lossFunction, randSeed)
+		_, _, err := solver.Solve(ctxWithCancel, solutionGen, &totalAttempts, [][]float64{seedFloats}, limitsSlice, wrappedLoss, randSeed)
+		solverErr <- err
 	})
 
 	solutions := map[float64][]float64{}
@@ -195,7 +204,7 @@ IK:
 		}
 
 		select {
-		case <-ikErr:
+		case <-solverErr:
 			// If we have a return from the IK solver, there are no more solutions, so we finish processing above
 			// until we've drained the channel, handled by the `continue` above
 			break IK
@@ -271,11 +280,11 @@ func averageJointPosition(ctx context.Context, a arm.Arm, n int) ([]referencefra
 			return nil, err
 		}
 		for i := range len(avg) {
-			avg[i].Value += j[i].Value
+			avg[i] += j[i]
 		}
 	}
 	for i := range len(avg) {
-		avg[i].Value /= float64(n)
+		avg[i] /= float64(n)
 	}
 	return avg, nil
 }
