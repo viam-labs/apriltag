@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from src.main import ApriltagVision, _detect_apriltags, _parse_optional_tag_width, _tag_pose, _tags_to_detections_3d
+from src.main import ApriltagVision, _camera_intrinsics, _detect_apriltags, _parse_optional_tag_width, _tag_pose, _tags_to_detections_3d
 
 
 def close(a: float, b: float) -> bool:
@@ -92,6 +92,29 @@ def test_real_detector_on_rendered_tag():
     )
     p = _tag_pose(tag)
     assert math.isclose(p.z, 500, abs_tol=10) and abs(p.x) < 10 and abs(p.y) < 10, p
+
+
+def test_camera_intrinsics_rejects_missing():
+    import asyncio
+    from viam.proto.component.camera import IntrinsicParameters
+
+    class Cam:
+        name = "cam"
+
+        def __init__(self, intr):
+            self.intr = intr
+
+        async def get_properties(self, timeout=None):
+            return SimpleNamespace(intrinsic_parameters=self.intr)
+
+    ok = IntrinsicParameters(focal_x_px=1000, focal_y_px=1000, center_x_px=640, center_y_px=360)
+    assert asyncio.run(_camera_intrinsics(Cam(ok), None)) == [1000, 1000, 640, 360]
+    try:
+        asyncio.run(_camera_intrinsics(Cam(IntrinsicParameters()), None))
+    except Exception as e:
+        assert "intrinsic" in str(e)
+        return
+    raise AssertionError("missing intrinsics accepted")
 
 
 if __name__ == "__main__":

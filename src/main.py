@@ -122,6 +122,9 @@ def _tag_pose(tag: Any) -> Pose:
 async def _camera_intrinsics(camera: Camera, timeout: Optional[float]) -> List[float]:
     """[fx, fy, cx, cy] for the detector pose estimator."""
     intr = (await camera.get_properties(timeout=timeout)).intrinsic_parameters
+    # A zero focal length segfaults the native pose solver; fail the request instead.
+    if not (intr.focal_x_px > 0 and intr.focal_y_px > 0):  # also rejects NaN
+        raise Exception(f"camera {camera.name} has no intrinsic parameters; tag poses need them")
     return [intr.focal_x_px, intr.focal_y_px, intr.center_x_px, intr.center_y_px]
 
 
