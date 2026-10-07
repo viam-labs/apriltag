@@ -11,7 +11,7 @@ try:
 except ImportError:
     sys.modules["dt_apriltags"] = SimpleNamespace(Detector=None)
 
-from src.main import _tag_pose
+from src.main import _tag_pose, _tags_to_detections_3d
 
 
 def close(a: float, b: float) -> bool:
@@ -39,6 +39,31 @@ def test_tag_pose_rotated_90_about_z():
     p = _tag_pose(fake_tag(pose_R=[[0, -1, 0], [1, 0, 0], [0, 0, 1]]))
     assert close(p.o_x, 0) and close(p.o_y, 0) and close(p.o_z, 1), p
     assert close(p.theta, 90), p  # degrees
+
+
+def test_tags_to_detections_3d():
+    good = fake_tag(tag_id=7, decision_margin=80.0)   # confidence 1.0
+    weak = fake_tag(tag_id=9, decision_margin=4.0)    # confidence 0.1
+    dets = _tags_to_detections_3d(
+        [good, weak], "my-vision", "my-cam", 50.0, confidence_threshold_pct=0.5
+    )
+    assert len(dets) == 1, dets
+
+    d = dets[0]
+    assert len(d.transforms) == 1
+    t = d.transforms[0]
+    assert t.reference_frame == "my-vision/tag-7"
+    assert t.pose_in_observer_frame.reference_frame == "my-cam"
+    pose = t.pose_in_observer_frame.pose
+    assert close(pose.x, 100) and close(pose.y, 200) and close(pose.z, 300), pose
+    assert close(pose.o_z, 1) and close(pose.theta, 0), pose
+    dims = t.physical_object.box.dims_mm
+    assert (dims.x, dims.y, dims.z) == (50.0, 50.0, 1.0), dims
+    assert t.physical_object.label == "tag-7"
+
+    assert len(d.classifications) == 1
+    assert d.classifications[0].class_name == "7"
+    assert close(d.classifications[0].confidence, 1.0)
 
 
 if __name__ == "__main__":

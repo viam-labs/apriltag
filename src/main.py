@@ -14,8 +14,8 @@ from viam.media.video import CameraMimeType, NamedImage, ViamImage
 from viam.proto.common import ResponseMetadata
 from viam.module.module import Module
 from viam.proto.app.robot import ComponentConfig
-from viam.proto.common import Geometry, PointCloudObject, PoseInFrame, Pose, ResourceName
-from viam.proto.service.vision import Classification, Detection, GetPropertiesResponse
+from viam.proto.common import Geometry, PointCloudObject, PoseInFrame, Pose, RectangularPrism, ResourceName, Transform, Vector3
+from viam.proto.service.vision import Classification, Detection, Detection3D, GetPropertiesResponse
 from viam.resource.base import ResourceBase
 from viam.resource.easy_resource import EasyResource
 from viam.resource.registry import Registry
@@ -210,6 +210,43 @@ def _tags_to_detections(
                 y_max_normalized=y_max / height,
                 confidence=confidence,
                 class_name=str(tag.tag_id),
+            )
+        )
+    return detections
+
+
+def _tags_to_detections_3d(
+    tags: Sequence[Any],
+    name_prefix: str,
+    camera_name: str,
+    tag_width_mm: float,
+    confidence_threshold_pct: float,
+) -> List[Detection3D]:
+    """One Detection3D per tag: a tag-sized box posed in the camera frame.
+
+    Tags must come from a pose-estimating detect (pose_R/pose_t set). Frame names
+    are prefixed with the service name so several detectors can share a WorldState.
+    """
+    detections: List[Detection3D] = []
+    for tag in tags:
+        confidence = _tag_confidence(tag)
+        if confidence < confidence_threshold_pct:
+            continue
+        label = f"tag-{tag.tag_id}"
+        detections.append(
+            Detection3D(
+                transforms=[
+                    Transform(
+                        reference_frame=f"{name_prefix}/{label}",
+                        pose_in_observer_frame=PoseInFrame(reference_frame=camera_name, pose=_tag_pose(tag)),
+                        # center left unset: the box sits at the transform's origin.
+                        physical_object=Geometry(
+                            box=RectangularPrism(dims_mm=Vector3(x=tag_width_mm, y=tag_width_mm, z=1)),
+                            label=label,
+                        ),
+                    )
+                ],
+                classifications=[Classification(class_name=str(tag.tag_id), confidence=confidence)],
             )
         )
     return detections
