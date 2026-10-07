@@ -172,6 +172,16 @@ def _parse_confidence_threshold(attrs: Mapping[str, Any]) -> float:
     return threshold
 
 
+def _parse_optional_tag_width(attrs: Mapping[str, Any]) -> Optional[float]:
+    value = attrs.get(width_attr)
+    if value is None:
+        return None
+    # bool is an int subclass; reject it explicitly.
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+        raise Exception(width_attr + " must be a positive number")
+    return float(value)
+
+
 def _tags_to_detections(
     tags: Sequence[Any],
     width: int,
@@ -447,12 +457,13 @@ class ApriltagCamera(Camera, EasyResource):
 
 
 class ApriltagVision(Vision, EasyResource):
-    """2D AprilTag detector.
+    """2D AprilTag detector that also returns 3D tag detections.
 
     Implements the Vision service detection API. Each detected tag becomes a
     Detection whose class_name is the tag ID. Pair this with
     viam:vision:detections-to-segments (which calls get_detections) to produce
-    3D point-cloud segments from a depth camera.
+    3D point-cloud segments from a depth camera. When tag_width_mm is
+    configured, get_detections_3d returns each tag's pose as a Detection3D.
     """
 
     MODEL: ClassVar[Model] = Model(ModelFamily("marcus-org", "apriltag"), "vision")
@@ -473,6 +484,7 @@ class ApriltagVision(Vision, EasyResource):
             raise Exception("Missing required " + family_attr + " attribute.")
         _parse_confidence_threshold(attrs)
         _parse_optional_int(attrs, bbox_padding_attr, 0)
+        _parse_optional_tag_width(attrs)
         return [str(cam)], []
 
     def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
@@ -482,6 +494,7 @@ class ApriltagVision(Vision, EasyResource):
         self.tag_family = attrs.get(family_attr)
         self.confidence_threshold_pct = _parse_confidence_threshold(attrs)
         self.bbox_padding_px = _parse_optional_int(attrs, bbox_padding_attr, 0)
+        self.tag_width_mm = _parse_optional_tag_width(attrs)
         self.detector = apriltag.Detector(families=self.tag_family)
 
     async def _detections_from_camera(self, timeout: Optional[float]) -> List[Detection]:
@@ -497,6 +510,25 @@ class ApriltagVision(Vision, EasyResource):
             bbox_padding_px=self.bbox_padding_px,
         )
 
+    async def _detections_3d_from_image(self, source: NamedImage, timeout: Optional[float]) -> List[Detection3D]:
+        # Callers check tag_width_mm is set.
+        intrinsics = await _camera_intrinsics(self.camera, timeout)
+        gray, _, _ = _gray_from_viam_image(source)
+        tags = _detect_apriltags(
+            self.detector,
+            gray,
+            estimate_tag_pose=True,
+            camera_params=intrinsics,
+            tag_size=self.tag_width_mm / 1000,
+        )
+        return _tags_to_detections_3d(
+            tags,
+            self.name,
+            self.camera.name,
+            self.tag_width_mm,
+            confidence_threshold_pct=self.confidence_threshold_pct,
+        )
+
     async def get_properties(
         self,
         *,
@@ -508,6 +540,8 @@ class ApriltagVision(Vision, EasyResource):
             classifications_supported=False,
             detections_supported=True,
             object_point_clouds_supported=False,
+            detections_3d_supported=self.tag_width_mm is not None,
+            default_camera=self.camera.name,
         )
 
     async def get_detections_from_camera(
@@ -570,6 +604,20 @@ class ApriltagVision(Vision, EasyResource):
     ) -> List[PointCloudObject]:
         raise NotImplementedError()
 
+    async def get_detections_3d(
+        self,
+        camera_name: str,
+        *,
+        extra: Optional[Mapping[str, ValueTypes]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[Detection3D]:
+        # Like the other *_from_camera methods, camera_name is ignored in favor of the configured camera.
+        if self.tag_width_mm is None:
+            raise Exception(width_attr + " must be set in the vision service config to use get_detections_3d")
+        cam_images, _ = await self.camera.get_images(timeout=timeout)
+        return await self._detections_3d_from_image(_color_image_from_camera_images(cam_images), timeout)
+
     async def capture_all_from_camera(
         self,
         camera_name: str,
@@ -577,6 +625,7 @@ class ApriltagVision(Vision, EasyResource):
         return_classifications: bool = False,
         return_detections: bool = False,
         return_object_point_clouds: bool = False,
+        return_detections_3d: bool = False,
         *,
         extra: Optional[Mapping[str, ValueTypes]] = None,
         timeout: Optional[float] = None,
@@ -584,9 +633,11 @@ class ApriltagVision(Vision, EasyResource):
     ) -> CaptureAllResult:
         image: Optional[ViamImage] = None
         detections: Optional[List[Detection]] = None
+        detections_3d: Optional[List[Detection3D]] = None
+        want_3d = return_detections_3d and self.tag_width_mm is not None
 
-        # Only touch the camera once if either the image or detections are needed.
-        if return_image or return_detections:
+        # Only touch the camera once for the image, 2D and 3D detections.
+        if return_image or return_detections or want_3d:
             cam_images, _ = await self.camera.get_images(timeout=timeout)
             source = _color_image_from_camera_images(cam_images)
             if return_image:
@@ -601,10 +652,12 @@ class ApriltagVision(Vision, EasyResource):
                     confidence_threshold_pct=self.confidence_threshold_pct,
                     bbox_padding_px=self.bbox_padding_px,
                 )
+            if want_3d:
+                detections_3d = await self._detections_3d_from_image(source, timeout)
 
         # Unsupported features return None rather than raising, so the combined
         # Control tab view (which requests everything) stays healthy.
-        return CaptureAllResult(image=image, detections=detections)
+        return CaptureAllResult(image=image, detections=detections, detections_3d=detections_3d)
 
 
 async def run_module():

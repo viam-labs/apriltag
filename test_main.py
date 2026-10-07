@@ -11,7 +11,7 @@ try:
 except ImportError:
     sys.modules["dt_apriltags"] = SimpleNamespace(Detector=None)
 
-from src.main import _tag_pose, _tags_to_detections_3d
+from src.main import ApriltagVision, _parse_optional_tag_width, _tag_pose, _tags_to_detections_3d
 
 
 def close(a: float, b: float) -> bool:
@@ -64,6 +64,21 @@ def test_tags_to_detections_3d():
     assert len(d.classifications) == 1
     assert d.classifications[0].class_name == "7"
     assert close(d.classifications[0].confidence, 1.0)
+
+
+def test_vision_is_concrete():
+    # SDK 0.84 made get_detections_3d abstract; a missing override breaks instantiation.
+    assert not ApriltagVision.__abstractmethods__, ApriltagVision.__abstractmethods__
+
+
+def test_parse_optional_tag_width():
+    assert _parse_optional_tag_width({}) is None
+    assert _parse_optional_tag_width({"tag_width_mm": 50}) == 50.0
+    try:
+        _parse_optional_tag_width({"tag_width_mm": True})  # bool is an int subclass
+    except Exception:
+        return
+    raise AssertionError("accepted True")
 
 
 if __name__ == "__main__":
