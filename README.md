@@ -34,7 +34,7 @@ Navigate to the [**CONFIGURE** tab](https://docs.viam.com/build/configure/) of y
 
 Use **`marcus-org:apriltag:vision`** as the 2D detector, then wire it into **`viam:vision:detections-to-segments`** for 3D.
 
-`marcus-org:apriltag:vision` is a pure 2D detector: it implements the Vision service detection API (`GetDetections`, `GetDetectionsFromCamera`, `CaptureAllFromCamera`, `GetProperties`) and reports `detections_supported = true`, `classifications_supported = false`, `object_point_clouds_supported = false`. The documented way to get 3D is to feed it into `viam:vision:detections-to-segments`, which calls `GetDetections` and projects the boxes onto the depth camera's point cloud. Because AprilTags are small, set `bbox_padding_px` to grow each tag bbox so the segmenter has enough depth points to work with (this padding applies consistently to every detection path).
+`marcus-org:apriltag:vision` returns 2D detections and, when `tag_width_mm` is set, 3D detections via `GetDetections3D` (one tag-sized box per tag, posed in the camera frame, with frame name `<service name>/tag-<id>`, usable directly in a motion `WorldState`). It implements the Vision service detection API (`GetDetections`, `GetDetectionsFromCamera`, `CaptureAllFromCamera`, `GetProperties`) and reports `detections_supported = true`, `classifications_supported = false`, `object_point_clouds_supported = false`. The documented way to get 3D is to feed it into `viam:vision:detections-to-segments`, which calls `GetDetections` and projects the boxes onto the depth camera's point cloud. Because AprilTags are small, set `bbox_padding_px` to grow each tag bbox so the segmenter has enough depth points to work with (this padding applies consistently to every detection path).
 
 **1. Detector** (`marcus-org:apriltag:vision`):
 
@@ -89,7 +89,7 @@ Each object's `geometries.geometries[0].label` is the tag ID string; `center` is
 | ---- | ---- | --------- | ----------- |
 | `camera_name` | string | **Required** | The name of the camera to depend on. |
 | `tag_family` | string | **Required** | The Apriltag 'tag family' to detect. |
-| `tag_width_mm` | float | Required for pose tracker / camera | Tag width in mm (corner to corner). Not used by the vision detector. |
+| `tag_width_mm` | float | Required for pose tracker / camera; optional for vision | Tag width in mm (corner to corner). For the vision model, optional and required for 3D detections. |
 | `confidence_threshold_pct` | float | Optional (vision only) | Detections below this confidence are dropped. Range `0.0`–`1.0`. Default `0.0`. Confidence is `decision_margin / 40`, capped at `1.0`. |
 | `bbox_padding_px` | int | Optional (vision only) | Pixels to expand each detection bbox on every side. Helps `detections-to-segments` capture enough depth points around small tags. Default `0`. |
 

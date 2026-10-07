@@ -20,7 +20,7 @@
 		{
 			"api": "rdk:service:vision",
 			"model": "marcus-org:apriltag:vision",
-			"short_description": "2D AprilTag detector for detections-to-segments 3D segmentation",
+			"short_description": "AprilTag detector: 2D detections, plus 3D tag poses when tag_width_mm is set",
 			"markdown_link": "README.md"
 		}
 	],
