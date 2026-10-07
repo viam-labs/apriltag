@@ -4,15 +4,15 @@ A Viam module that uses apriltags as an implementation for a PoseTracker compone
 
 Fork of [viam-labs/apriltag](https://github.com/viam-labs/apriltag) with fixes for module reconfigure when unrelated machine resources are disabled.
 
-**Module:** [marcus-org/apriltag](https://app.viam.com/module/marcus-org/apriltag)
+**Module:** [viam/apriltag](https://app.viam.com/module/viam/apriltag)
 
 ## Models
 
 | Model | API | Purpose |
 | ----- | --- | ------- |
-| `marcus-org:apriltag:pose_tracker` | pose tracker | 6-DOF tag poses via PnP |
-| `marcus-org:apriltag:camera` | camera | Annotated debug feed |
-| `marcus-org:apriltag:vision` | vision | 2D tag detections, native 3D detections when `tag_width_mm` is set, or use with `detections-to-segments` |
+| `viam:apriltag:pose_tracker` | pose tracker | 6-DOF tag poses via PnP |
+| `viam:apriltag:camera` | camera | Annotated debug feed |
+| `viam:apriltag:vision` | vision | 2D tag detections, native 3D detections when `tag_width_mm` is set, or use with `detections-to-segments` |
 
 ## Configuration and Usage
 
@@ -20,7 +20,7 @@ Navigate to the [**CONFIGURE** tab](https://docs.viam.com/build/configure/) of y
 
 ### Pose tracker
 
-[Add a pose tracker component](https://docs.viam.com/build/configure/#components) using model **`marcus-org:apriltag:pose_tracker`**.
+[Add a pose tracker component](https://docs.viam.com/build/configure/#components) using model **`viam:apriltag:pose_tracker`**.
 
 ```json
 {
@@ -32,17 +32,17 @@ Navigate to the [**CONFIGURE** tab](https://docs.viam.com/build/configure/) of y
 
 ### Vision detector + detections-to-segments
 
-Use **`marcus-org:apriltag:vision`** for native 3D detections (set `tag_width_mm`), or wire it into **`viam:vision:detections-to-segments`** as an alternative point-cloud route that works without `tag_width_mm`.
+Use **`viam:apriltag:vision`** for native 3D detections (set `tag_width_mm`), or wire it into **`viam:vision:detections-to-segments`** as an alternative point-cloud route that works without `tag_width_mm`.
 
-`marcus-org:apriltag:vision` returns 2D detections and, when `tag_width_mm` is set, 3D detections via `GetDetections3D` (one tag-sized box per tag, posed in the camera frame, with frame name `<service name>/tag-<id>`, usable directly in a motion `WorldState`). It implements the Vision service detection API (`GetDetections`, `GetDetectionsFromCamera`, `GetDetections3D`, `CaptureAllFromCamera`, `GetProperties`) and reports `detections_supported = true`, `detections_3d_supported` (true when `tag_width_mm` is set), `classifications_supported = false`, `object_point_clouds_supported = false`. Alternatively, feed it into `viam:vision:detections-to-segments`, which calls `GetDetections` and projects the boxes onto the depth camera's point cloud. Because AprilTags are small, set `bbox_padding_px` to grow each tag bbox so the segmenter has enough depth points to work with (this padding applies consistently to every detection path).
+`viam:apriltag:vision` returns 2D detections and, when `tag_width_mm` is set, 3D detections via `GetDetections3D` (one tag-sized box per tag, posed in the camera frame, with frame name `<service name>/tag-<id>`, usable directly in a motion `WorldState`). It implements the Vision service detection API (`GetDetections`, `GetDetectionsFromCamera`, `GetDetections3D`, `CaptureAllFromCamera`, `GetProperties`) and reports `detections_supported = true`, `detections_3d_supported` (true when `tag_width_mm` is set), `classifications_supported = false`, `object_point_clouds_supported = false`. Alternatively, feed it into `viam:vision:detections-to-segments`, which calls `GetDetections` and projects the boxes onto the depth camera's point cloud. Because AprilTags are small, set `bbox_padding_px` to grow each tag bbox so the segmenter has enough depth points to work with (this padding applies consistently to every detection path).
 
-**1. Detector** (`marcus-org:apriltag:vision`):
+**1. Detector** (`viam:apriltag:vision`):
 
 ```json
 {
   "name": "apriltag-detector",
   "api": "rdk:service:vision",
-  "model": "marcus-org:apriltag:vision",
+  "model": "viam:apriltag:vision",
   "attributes": {
     "camera_name": "crop-camera",
     "tag_family": "tag36h11",

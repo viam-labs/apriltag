@@ -1,25 +1,25 @@
 {
 	"$schema": "https://dl.viam.dev/module.schema.json",
-	"module_id": "marcus-org:apriltag",
+	"module_id": "viam:apriltag",
 	"visibility": "public",
-	"url": "https://github.com/sucrammal/apriltag",
-	"description": "Apriltag pose tracker for Viam, with fixes for reconfigure when unrelated machine resources are disabled",
+	"url": "https://github.com/viam-labs/apriltag",
+	"description": "AprilTag pose tracker, annotated camera, and 2D/3D vision detector for Viam",
 	"models": [
 		{
 			"api": "rdk:component:pose_tracker",
-			"model": "marcus-org:apriltag:pose_tracker",
+			"model": "viam:apriltag:pose_tracker",
 			"short_description": "A pose tracker component utilizing Apriltags",
 			"markdown_link": "README.md"
 		},
 		{
 			"api": "rdk:component:camera",
-			"model": "marcus-org:apriltag:camera",
+			"model": "viam:apriltag:camera",
 			"short_description": "Annotated camera feed showing detected Apriltag outlines and IDs",
 			"markdown_link": "README.md"
 		},
 		{
 			"api": "rdk:service:vision",
-			"model": "marcus-org:apriltag:vision",
+			"model": "viam:apriltag:vision",
 			"short_description": "AprilTag detector: 2D detections, plus 3D tag poses when tag_width_mm is set",
 			"markdown_link": "README.md"
 		}

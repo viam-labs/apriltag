@@ -292,7 +292,7 @@ class ApriltagModule(Module):
 
 
 class Apriltag(PoseTracker, EasyResource):
-    MODEL: ClassVar[Model] = Model(ModelFamily("marcus-org", "apriltag"), "pose_tracker")
+    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "apriltag"), "pose_tracker")
 
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
@@ -386,7 +386,7 @@ class Apriltag(PoseTracker, EasyResource):
 
 
 class ApriltagCamera(Camera, EasyResource):
-    MODEL: ClassVar[Model] = Model(ModelFamily("marcus-org", "apriltag"), "camera")
+    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "apriltag"), "camera")
 
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
@@ -467,7 +467,7 @@ class ApriltagVision(Vision, EasyResource):
     configured, get_detections_3d returns each tag's pose as a Detection3D.
     """
 
-    MODEL: ClassVar[Model] = Model(ModelFamily("marcus-org", "apriltag"), "vision")
+    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "apriltag"), "vision")
 
     @classmethod
     def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
