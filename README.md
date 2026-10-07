@@ -114,8 +114,8 @@ make module.tar.gz
 viam module upload --version 0.3.0 --platform linux/amd64 --upload module.tar.gz
 viam module upload --version 0.3.0 --platform linux/arm64 --upload module.tar.gz
 
-# Alternative: push to a machine via cloud build (run.sh must NOT be executable in git)
-# chmod -x run.sh   # required — executable run.sh makes cloud build skip packaging
+# Alternative: push to a machine via cloud build. run.sh must NOT be executable on disk
+# (the reload archives your working tree); `python -m test_main` checks this.
 # viam module reload --part-id <your-part-id>
 
 # 3. Optional: refresh module metadata on the registry

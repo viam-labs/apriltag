@@ -117,6 +117,14 @@ def test_camera_intrinsics_rejects_missing():
     raise AssertionError("missing intrinsics accepted")
 
 
+def test_run_sh_not_executable():
+    # `viam module reload` archives the working tree as-is; an executable run.sh makes the
+    # cloud builder treat the module as pre-built and skip `make`, so the build fails.
+    import os
+
+    assert not os.access("run.sh", os.X_OK), "chmod -x run.sh (Makefile sets +x only while packaging)"
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

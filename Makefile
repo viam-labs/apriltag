@@ -1,7 +1,8 @@
 .PHONY: clean
 
-# run.sh is tracked non-executable in git so Viam cloud builds don't mistake it
-# for a prebuilt module and skip the build step. We make it executable only for
+# run.sh stays non-executable (in git and on disk): `viam module reload` archives the
+# working tree with its file modes, and the cloud builder treats an executable
+# entrypoint as a prebuilt module and skips this build step. We make it executable only for
 # the duration of packaging (viam-server execs the entrypoint), then restore the
 # mode so the working tree stays clean.
 module.tar.gz: run.sh requirements.txt meta.json src/*.py
