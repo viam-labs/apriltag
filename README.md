@@ -1,6 +1,6 @@
 # `apriltag` module
 
-A Viam module that uses apriltags as an implementation for a PoseTracker component, an annotated camera, and a 2D vision detector.
+A Viam module that uses apriltags as an implementation for a PoseTracker component, an annotated camera, and a vision detector (2D detections, plus 3D detections when `tag_width_mm` is set).
 
 Fork of [viam-labs/apriltag](https://github.com/viam-labs/apriltag) with fixes for module reconfigure when unrelated machine resources are disabled.
 
@@ -12,7 +12,7 @@ Fork of [viam-labs/apriltag](https://github.com/viam-labs/apriltag) with fixes f
 | ----- | --- | ------- |
 | `marcus-org:apriltag:pose_tracker` | pose tracker | 6-DOF tag poses via PnP |
 | `marcus-org:apriltag:camera` | camera | Annotated debug feed |
-| `marcus-org:apriltag:vision` | vision | 2D tag detections for `detections-to-segments` |
+| `marcus-org:apriltag:vision` | vision | 2D tag detections, native 3D detections when `tag_width_mm` is set, or use with `detections-to-segments` |
 
 ## Configuration and Usage
 
@@ -32,9 +32,9 @@ Navigate to the [**CONFIGURE** tab](https://docs.viam.com/build/configure/) of y
 
 ### Vision detector + detections-to-segments
 
-Use **`marcus-org:apriltag:vision`** as the 2D detector, then wire it into **`viam:vision:detections-to-segments`** for 3D.
+Use **`marcus-org:apriltag:vision`** for native 3D detections (set `tag_width_mm`), or wire it into **`viam:vision:detections-to-segments`** as an alternative point-cloud route that works without `tag_width_mm`.
 
-`marcus-org:apriltag:vision` returns 2D detections and, when `tag_width_mm` is set, 3D detections via `GetDetections3D` (one tag-sized box per tag, posed in the camera frame, with frame name `<service name>/tag-<id>`, usable directly in a motion `WorldState`). It implements the Vision service detection API (`GetDetections`, `GetDetectionsFromCamera`, `CaptureAllFromCamera`, `GetProperties`) and reports `detections_supported = true`, `classifications_supported = false`, `object_point_clouds_supported = false`. The documented way to get 3D is to feed it into `viam:vision:detections-to-segments`, which calls `GetDetections` and projects the boxes onto the depth camera's point cloud. Because AprilTags are small, set `bbox_padding_px` to grow each tag bbox so the segmenter has enough depth points to work with (this padding applies consistently to every detection path).
+`marcus-org:apriltag:vision` returns 2D detections and, when `tag_width_mm` is set, 3D detections via `GetDetections3D` (one tag-sized box per tag, posed in the camera frame, with frame name `<service name>/tag-<id>`, usable directly in a motion `WorldState`). It implements the Vision service detection API (`GetDetections`, `GetDetectionsFromCamera`, `GetDetections3D`, `CaptureAllFromCamera`, `GetProperties`) and reports `detections_supported = true`, `detections_3d_supported` (true when `tag_width_mm` is set), `classifications_supported = false`, `object_point_clouds_supported = false`. Alternatively, feed it into `viam:vision:detections-to-segments`, which calls `GetDetections` and projects the boxes onto the depth camera's point cloud. Because AprilTags are small, set `bbox_padding_px` to grow each tag bbox so the segmenter has enough depth points to work with (this padding applies consistently to every detection path).
 
 **1. Detector** (`marcus-org:apriltag:vision`):
 
@@ -107,7 +107,7 @@ For more information about the Apriltag specification and how they can be used s
 From the module root, with the [Viam CLI](https://docs.viam.com/cli/) authenticated:
 
 ```bash
-# 1. Build the upload archive (linux/arm64 + linux/amd64 native libs)
+# 1. Build the upload archive
 make module.tar.gz
 
 # 2. Upload for each platform your meta.json declares
