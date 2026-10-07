@@ -1,12 +1,9 @@
 import asyncio
-import math
 
 import dt_apriltags as apriltag
 import numpy as np
 import cv2
 
-from scipy.spatial.transform import Rotation
-from .spatialmath import quaternion_to_orientation_vector
 
 from typing import (Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, cast)
 from typing_extensions import Self
@@ -26,6 +23,7 @@ from viam.resource.types import Model, ModelFamily, RESOURCE_TYPE_COMPONENT, RES
 from viam.errors import ResourceNotFoundError
 from viam.logging import getLogger
 from viam.services.vision import CaptureAllResult, Vision
+from viam.spatialmath import RotationMatrix
 from viam.utils import struct_to_dict, ValueTypes
 from viam.media.utils.pil import viam_to_pil_image
 
@@ -111,6 +109,19 @@ def _detect_apriltags(
             )
         )
     return list(detector.detect(gray))
+
+
+def _tag_pose(tag: Any) -> Pose:
+    """Tag pose in the camera frame: mm translation, orientation vector in degrees."""
+    # dt_apriltags reports pose_t in meters; Viam poses are in mm.
+    x, y, z = (float(v) * 1000 for v in tag.pose_t.flatten())
+    return RotationMatrix(tag.pose_R.flatten()).to_quaternion().to_pose(x, y, z)
+
+
+async def _camera_intrinsics(camera: Camera, timeout: Optional[float]) -> List[float]:
+    """[fx, fy, cx, cy] as dt_apriltags expects for camera_params."""
+    intr = (await camera.get_properties(timeout=timeout)).intrinsic_parameters
+    return [intr.focal_x_px, intr.focal_y_px, intr.center_x_px, intr.center_y_px]
 
 
 def _tag_confidence(tag: Any) -> float:
@@ -278,18 +289,9 @@ class Apriltag(PoseTracker, EasyResource):
         Returns:
             Dict[str, PoseInFrame]: A dictionary mapping Apriltag ID strings to their detected PoseInFrame
         """
-        properties = await self.camera.get_properties(timeout=timeout)
-        intr = properties.intrinsic_parameters
-        intrinsics = [
-            intr.focal_x_px,
-            intr.focal_y_px,
-            intr.center_x_px,
-            intr.center_y_px,
-        ]
-
+        intrinsics = await _camera_intrinsics(self.camera, timeout)
         cam_images, _ = await self.camera.get_images(timeout=timeout)
-        source = _color_image_from_camera_images(cam_images)
-        gray_image, _, _ = _gray_from_viam_image(source)
+        gray_image, _, _ = _gray_from_viam_image(_color_image_from_camera_images(cam_images))
 
         tags = _detect_apriltags(
             self.detector,
@@ -299,24 +301,11 @@ class Apriltag(PoseTracker, EasyResource):
             tag_size=0.001 * self.tag_width_mm,
         )
 
-        poses: Dict[str, PoseInFrame] = {}
-        for tag in tags:
-            if len(body_names) == 0 or str(tag.tag_id) in body_names:
-                o = quaternion_to_orientation_vector(Rotation.from_matrix(tag.pose_R))
-                # positions are in meters (convert to mm); theta from radians to degrees.
-                poses[str(tag.tag_id)] = PoseInFrame(
-                    reference_frame=self.camera.name,
-                    pose=Pose(
-                        x=tag.pose_t[0][0] * 1000,
-                        y=tag.pose_t[1][0] * 1000,
-                        z=tag.pose_t[2][0] * 1000,
-                        o_x=o.o_x,
-                        o_y=o.o_y,
-                        o_z=o.o_z,
-                        theta=o.theta * 180 / math.pi,
-                    ),
-                )
-        return poses
+        return {
+            str(tag.tag_id): PoseInFrame(reference_frame=self.camera.name, pose=_tag_pose(tag))
+            for tag in tags
+            if len(body_names) == 0 or str(tag.tag_id) in body_names
+        }
 
     async def get_geometries(self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None) -> List[Geometry]:
         raise NotImplementedError()
