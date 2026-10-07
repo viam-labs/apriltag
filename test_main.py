@@ -1,17 +1,10 @@
 """Plain-assert checks for src/main.py. Run: .venv/bin/python -m test_main"""
 import math
-import sys
 from types import SimpleNamespace
 
 import numpy as np
 
-# dt-apriltags has no macOS wheel; stub it when absent. The helpers under test never call it.
-try:
-    import dt_apriltags  # noqa: F401
-except ImportError:
-    sys.modules["dt_apriltags"] = SimpleNamespace(Detector=None)
-
-from src.main import ApriltagVision, _parse_optional_tag_width, _tag_pose, _tags_to_detections_3d
+from src.main import ApriltagVision, _detect_apriltags, _parse_optional_tag_width, _tag_pose, _tags_to_detections_3d
 
 
 def close(a: float, b: float) -> bool:
@@ -79,6 +72,26 @@ def test_parse_optional_tag_width():
     except Exception:
         return
     raise AssertionError("accepted True")
+
+
+def test_real_detector_on_rendered_tag():
+    import apriltag
+    import cv2
+
+    marker = cv2.aruco.generateImageMarker(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11), 7, 200)
+    gray = np.full((720, 1280), 255, dtype=np.uint8)
+    gray[260:460, 540:740] = marker  # 200 px tag centered on the principal point
+    detector = apriltag.apriltag("tag36h11", decimate=2.0)
+
+    (tag,) = _detect_apriltags(detector, gray)
+    assert tag.tag_id == 7 and tag.decision_margin > 0 and tag.corners.shape == (4, 2)
+
+    # 0.1 m tag spanning 200 px at f=1000 px -> 0.5 m away
+    (tag,) = _detect_apriltags(
+        detector, gray, estimate_tag_pose=True, camera_params=[1000.0, 1000.0, 640.0, 360.0], tag_size=0.1
+    )
+    p = _tag_pose(tag)
+    assert math.isclose(p.z, 500, abs_tol=10) and abs(p.x) < 10 and abs(p.y) < 10, p
 
 
 if __name__ == "__main__":

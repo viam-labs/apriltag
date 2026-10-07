@@ -1,6 +1,7 @@
 import asyncio
+from types import SimpleNamespace
 
-import dt_apriltags as apriltag
+import apriltag
 import numpy as np
 import cv2
 
@@ -78,58 +79,55 @@ def _gray_from_viam_image(image: ViamImage) -> tuple[np.ndarray, int, int]:
         gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
     width = int(image.width or rgb.shape[1])
     height = int(image.height or rgb.shape[0])
-    # dt_apriltags' native code indexes the buffer directly; a non-contiguous or
-    # non-uint8 array reads out of bounds and corrupts the heap (free(): invalid
-    # pointer). Force a contiguous uint8 buffer before handing it to the detector.
-    gray = np.ascontiguousarray(gray, dtype=np.uint8)
     return gray, width, height
 
 
-# dt_apriltags.Detector wraps a native C detector whose __del__ frees the tag
-# family. Creating a new detector per call and letting it be garbage-collected
-# churns those native allocations and triggers a double-free (free(): invalid
-# pointer) that crashes the whole module process. Each resource instead builds
-# its detector once in reconfigure() and reuses it here.
+# decimate=2.0 matches the old dt_apriltags default: ~2.7x faster than 1.0; 1.0 finds smaller/farther tags.
+# Build the native detector once per resource in reconfigure() and reuse it here.
 def _detect_apriltags(
-    detector: "apriltag.Detector",
+    detector: Any,
     gray_image: np.ndarray,
     *,
     estimate_tag_pose: bool = False,
     camera_params: Optional[Sequence[float]] = None,
     tag_size: Optional[float] = None,
 ) -> list[Any]:
+    """Detect tags and adapt apriltag-python's dicts to attribute objects.
+
+    Each result has tag_id, corners, center, decision_margin and, when
+    estimate_tag_pose is set, pose_R (3x3) and pose_t (3x1, meters).
+    """
+    # The native detector requires a C-contiguous 2-D uint8 buffer.
     gray = np.ascontiguousarray(gray_image, dtype=np.uint8)
-    if estimate_tag_pose:
-        return list(
-            detector.detect(
-                gray,
-                estimate_tag_pose=True,
-                camera_params=camera_params,
-                tag_size=tag_size,
-            )
+    tags = []
+    for d in detector.detect(gray):
+        tag = SimpleNamespace(
+            tag_id=d["id"], corners=d["lb-rb-rt-lt"], center=d["center"], decision_margin=d["margin"]
         )
-    return list(detector.detect(gray))
+        if estimate_tag_pose:
+            fx, fy, cx, cy = camera_params
+            pose = detector.estimate_tag_pose(d, tag_size, fx, fy, cx, cy)
+            tag.pose_R, tag.pose_t = pose["R"], pose["t"]
+        tags.append(tag)
+    return tags
 
 
 def _tag_pose(tag: Any) -> Pose:
     """Tag pose in the camera frame: mm translation, orientation vector in degrees."""
-    # dt_apriltags reports pose_t in meters; Viam poses are in mm.
+    # The detector reports pose_t in meters; Viam poses are in mm.
     x, y, z = (float(v) * 1000 for v in tag.pose_t.flatten())
     return RotationMatrix(tag.pose_R.flatten()).to_quaternion().to_pose(x, y, z)
 
 
 async def _camera_intrinsics(camera: Camera, timeout: Optional[float]) -> List[float]:
-    """[fx, fy, cx, cy] as dt_apriltags expects for camera_params."""
+    """[fx, fy, cx, cy] for the detector pose estimator."""
     intr = (await camera.get_properties(timeout=timeout)).intrinsic_parameters
     return [intr.focal_x_px, intr.focal_y_px, intr.center_x_px, intr.center_y_px]
 
 
 def _tag_confidence(tag: Any) -> float:
-    margin = getattr(tag, "decision_margin", None)
-    if margin is None:
-        return 1.0
     # decision_margin is commonly 20-150; map so good tags clear segmenter defaults.
-    return float(min(max(margin / 40.0, 0.0), 1.0))
+    return float(min(max(tag.decision_margin / 40.0, 0.0), 1.0))
 
 
 def _parse_optional_int(attrs: Mapping[str, Any], key: str, default: int) -> int:
@@ -317,7 +315,7 @@ class Apriltag(PoseTracker, EasyResource):
         self.camera = cast(Camera, dependencies[Camera.get_resource_name(cam_name)])
         self.tag_family = attrs.get(family_attr)
         self.tag_width_mm = attrs.get(width_attr)
-        self.detector = apriltag.Detector(families=self.tag_family)
+        self.detector = apriltag.apriltag(self.tag_family, decimate=2.0)
 
     async def get_poses(
         self,
@@ -411,7 +409,7 @@ class ApriltagCamera(Camera, EasyResource):
         self.camera = cast(Camera, dependencies[Camera.get_resource_name(cam_name)])
         self.tag_family = attrs.get(family_attr)
         self.tag_width_mm = attrs.get(width_attr)
-        self.detector = apriltag.Detector(families=self.tag_family)
+        self.detector = apriltag.apriltag(self.tag_family, decimate=2.0)
 
     async def get_images(
         self,
@@ -495,7 +493,7 @@ class ApriltagVision(Vision, EasyResource):
         self.confidence_threshold_pct = _parse_confidence_threshold(attrs)
         self.bbox_padding_px = _parse_optional_int(attrs, bbox_padding_attr, 0)
         self.tag_width_mm = _parse_optional_tag_width(attrs)
-        self.detector = apriltag.Detector(families=self.tag_family)
+        self.detector = apriltag.apriltag(self.tag_family, decimate=2.0)
 
     async def _detections_from_camera(self, timeout: Optional[float]) -> List[Detection]:
         cam_images, _ = await self.camera.get_images(timeout=timeout)
