@@ -1,2 +1,5 @@
 .venv
 module.tar.gz
+__pycache__/
+.VIAM_RELOAD_ARCHIVE.tar.gz
+/testing

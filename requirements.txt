@@ -1,7 +1,6 @@
-viam-sdk==0.79.1
-dt-apriltags
+viam-sdk>=0.84.0
+apriltag-python==3.4.5
 numpy
 opencv-python
 pillow
 typing-extensions
-scipy
