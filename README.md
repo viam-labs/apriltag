@@ -113,6 +113,9 @@ make module.tar.gz
 # 2. Upload for each platform your meta.json declares
 viam module upload --version 0.3.0 --platform linux/amd64 --upload module.tar.gz
 viam module upload --version 0.3.0 --platform linux/arm64 --upload module.tar.gz
+viam module upload --version 0.3.0 --platform darwin/arm64 --upload module.tar.gz
+# windows/amd64 needs a PyInstaller bundle instead; publishing a GitHub release
+# builds and uploads it (see .github/workflows/deploy.yml).
 
 # Alternative: push to a machine via cloud build. run.sh must NOT be executable on disk
 # (the reload archives your working tree); `python -m test_main` checks this.
