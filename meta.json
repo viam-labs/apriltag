@@ -26,7 +26,8 @@
 	],
 	"entrypoint": "run.sh",
 	"build": {
-		"arch": ["linux/arm64", "linux/amd64"],
+		"arch": ["linux/arm64", "linux/amd64", "darwin/arm64"],
+		"darwin_deps": [],
 		"build": "make module.tar.gz",
 		"path": "module.tar.gz"
 	}
