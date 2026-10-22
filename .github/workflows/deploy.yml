@@ -16,3 +16,41 @@ jobs:
           ref: ${{ github.sha }}
           key-id: ${{ secrets.viam_key_id }}
           key-value: ${{ secrets.viam_key_value }}
+
+  # Cloud build doesn't support Python on Windows, and run.sh can't run there, so
+  # Windows ships a PyInstaller bundle (no Python needed on the machine).
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pyinstaller
+      - run: python -m PyInstaller --noconfirm --onedir --name main --collect-all viam --collect-all apriltag src/main.py
+      # viam-server takes the entrypoint from the meta.json inside the package
+      - run: python -c "import json; m = json.load(open('meta.json')); m['entrypoint'] = 'main/main.exe'; json.dump(m, open('dist/meta.json', 'w'), indent=2)"
+      - run: tar czf module.tar.gz -C dist meta.json main
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-module
+          path: module.tar.gz
+
+  upload-windows:
+    needs: [publish, build-windows]
+    runs-on: ubuntu-latest # upload-module is a docker action
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-module
+      - uses: viamrobotics/upload-module@v1
+        with:
+          platform: windows/amd64
+          version: ${{ github.ref_name }}
+          do-update: false # build-action already pushed meta.json
+          key-id: ${{ secrets.viam_key_id }}
+          key-value: ${{ secrets.viam_key_value }}
