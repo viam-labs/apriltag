@@ -53,6 +53,10 @@ def test_tags_to_detections_3d():
     dims = t.physical_object.box.dims_mm
     assert (dims.x, dims.y, dims.z) == (50.0, 50.0, 1.0), dims
     assert t.physical_object.label == "tag-7"
+    # Go clients reject a geometry without a center; it is the identity pose.
+    assert t.physical_object.HasField("center")
+    center = t.physical_object.center
+    assert (center.x, center.y, center.z, center.o_z, center.theta) == (0, 0, 0, 1, 0), center
 
     assert len(d.classifications) == 1
     assert d.classifications[0].class_name == "7"

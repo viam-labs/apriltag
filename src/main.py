@@ -250,8 +250,10 @@ def _tags_to_detections_3d(
                     Transform(
                         reference_frame=f"{name_prefix}/{label}",
                         pose_in_observer_frame=PoseInFrame(reference_frame=camera_name, pose=_tag_pose(tag)),
-                        # center left unset: the box sits at the transform's origin.
+                        # The box sits at the transform's origin. center must still be set:
+                        # Go clients reject a geometry without one.
                         physical_object=Geometry(
+                            center=Pose(o_z=1),
                             box=RectangularPrism(dims_mm=Vector3(x=tag_width_mm, y=tag_width_mm, z=1)),
                             label=label,
                         ),
