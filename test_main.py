@@ -1,10 +1,18 @@
 """Plain-assert checks for src/main.py. Run: .venv/bin/python -m test_main"""
+
 import math
 from types import SimpleNamespace
 
 import numpy as np
 
-from src.main import ApriltagVision, _camera_intrinsics, _detect_apriltags, _parse_optional_tag_width, _tag_pose, _tags_to_detections_3d
+from src.main import (
+    ApriltagVision,
+    _camera_intrinsics,
+    _detect_apriltags,
+    _parse_optional_tag_width,
+    _tag_pose,
+    _tags_to_detections_3d,
+)
 
 
 def close(a: float, b: float) -> bool:
@@ -25,7 +33,9 @@ def test_tag_pose_identity():
     p = _tag_pose(fake_tag())
     # meters -> mm
     assert close(p.x, 100) and close(p.y, 200) and close(p.z, 300), p
-    assert close(p.o_x, 0) and close(p.o_y, 0) and close(p.o_z, 1) and close(p.theta, 0), p
+    assert (
+        close(p.o_x, 0) and close(p.o_y, 0) and close(p.o_z, 1) and close(p.theta, 0)
+    ), p
 
 
 def test_tag_pose_rotated_90_about_z():
@@ -35,8 +45,8 @@ def test_tag_pose_rotated_90_about_z():
 
 
 def test_tags_to_detections_3d():
-    good = fake_tag(tag_id=7, decision_margin=80.0)   # confidence 1.0
-    weak = fake_tag(tag_id=9, decision_margin=4.0)    # confidence 0.1
+    good = fake_tag(tag_id=7, decision_margin=80.0)  # confidence 1.0
+    weak = fake_tag(tag_id=9, decision_margin=4.0)  # confidence 0.1
     dets = _tags_to_detections_3d(
         [good, weak], "my-vision", "my-cam", 50.0, confidence_threshold_pct=0.5
     )
@@ -56,7 +66,13 @@ def test_tags_to_detections_3d():
     # Go clients reject a geometry without a center; it is the identity pose.
     assert t.physical_object.HasField("center")
     center = t.physical_object.center
-    assert (center.x, center.y, center.z, center.o_z, center.theta) == (0, 0, 0, 1, 0), center
+    assert (center.x, center.y, center.z, center.o_z, center.theta) == (
+        0,
+        0,
+        0,
+        1,
+        0,
+    ), center
 
     assert len(d.classifications) == 1
     assert d.classifications[0].class_name == "7"
@@ -82,7 +98,9 @@ def test_real_detector_on_rendered_tag():
     import apriltag
     import cv2
 
-    marker = cv2.aruco.generateImageMarker(cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11), 7, 200)
+    marker = cv2.aruco.generateImageMarker(
+        cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11), 7, 200
+    )
     gray = np.full((720, 1280), 255, dtype=np.uint8)
     gray[260:460, 540:740] = marker  # 200 px tag centered on the principal point
     detector = apriltag.apriltag("tag36h11", decimate=2.0)
@@ -92,7 +110,11 @@ def test_real_detector_on_rendered_tag():
 
     # 0.1 m tag spanning 200 px at f=1000 px -> 0.5 m away
     (tag,) = _detect_apriltags(
-        detector, gray, estimate_tag_pose=True, camera_params=[1000.0, 1000.0, 640.0, 360.0], tag_size=0.1
+        detector,
+        gray,
+        estimate_tag_pose=True,
+        camera_params=[1000.0, 1000.0, 640.0, 360.0],
+        tag_size=0.1,
     )
     p = _tag_pose(tag)
     assert math.isclose(p.z, 500, abs_tol=10) and abs(p.x) < 10 and abs(p.y) < 10, p
@@ -111,7 +133,9 @@ def test_camera_intrinsics_rejects_missing():
         async def get_properties(self, timeout=None):
             return SimpleNamespace(intrinsic_parameters=self.intr)
 
-    ok = IntrinsicParameters(focal_x_px=1000, focal_y_px=1000, center_x_px=640, center_y_px=360)
+    ok = IntrinsicParameters(
+        focal_x_px=1000, focal_y_px=1000, center_x_px=640, center_y_px=360
+    )
     assert asyncio.run(_camera_intrinsics(Cam(ok), None)) == [1000, 1000, 640, 360]
     try:
         asyncio.run(_camera_intrinsics(Cam(IntrinsicParameters()), None))
@@ -126,7 +150,9 @@ def test_run_sh_not_executable():
     # cloud builder treat the module as pre-built and skip `make`, so the build fails.
     import os
 
-    assert not os.access("run.sh", os.X_OK), "chmod -x run.sh (Makefile sets +x only while packaging)"
+    assert not os.access("run.sh", os.X_OK), (
+        "chmod -x run.sh (Makefile sets +x only while packaging)"
+    )
 
 
 if __name__ == "__main__":
