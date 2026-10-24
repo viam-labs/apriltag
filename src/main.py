@@ -1,27 +1,27 @@
 import asyncio
 from types import SimpleNamespace
+from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
 import apriltag
-import numpy as np
 import cv2
-
-
-from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, cast
+import numpy as np
 from typing_extensions import Self
-
-from viam.components.pose_tracker import PoseTracker
 from viam.components.camera import Camera
+from viam.components.pose_tracker import PoseTracker
+from viam.errors import ResourceNotFoundError
+from viam.logging import getLogger
+from viam.media.utils.pil import viam_to_pil_image
 from viam.media.video import CameraMimeType, NamedImage, ViamImage
-from viam.proto.common import ResponseMetadata
 from viam.module.module import Module
 from viam.proto.app.robot import ComponentConfig
 from viam.proto.common import (
     Geometry,
     PointCloudObject,
-    PoseInFrame,
     Pose,
+    PoseInFrame,
     RectangularPrism,
     ResourceName,
+    ResponseMetadata,
     Transform,
     Vector3,
 )
@@ -35,18 +35,14 @@ from viam.resource.base import ResourceBase
 from viam.resource.easy_resource import EasyResource
 from viam.resource.registry import Registry
 from viam.resource.types import (
-    Model,
-    ModelFamily,
     RESOURCE_TYPE_COMPONENT,
     RESOURCE_TYPE_SERVICE,
+    Model,
+    ModelFamily,
 )
-from viam.errors import ResourceNotFoundError
-from viam.logging import getLogger
 from viam.services.vision import CaptureAllResult, Vision
 from viam.spatialmath import RotationMatrix
-from viam.utils import struct_to_dict, ValueTypes
-from viam.media.utils.pil import viam_to_pil_image
-
+from viam.utils import ValueTypes, struct_to_dict
 
 # required attributes
 cam_attr = "camera_name"

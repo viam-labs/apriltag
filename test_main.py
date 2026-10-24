@@ -122,6 +122,7 @@ def test_real_detector_on_rendered_tag():
 
 def test_camera_intrinsics_rejects_missing():
     import asyncio
+
     from viam.proto.component.camera import IntrinsicParameters
 
     class Cam:
