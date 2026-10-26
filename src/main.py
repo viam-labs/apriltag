@@ -1,33 +1,48 @@
 import asyncio
 from types import SimpleNamespace
+from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
 import apriltag
-import numpy as np
 import cv2
-
-
-from typing import (Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, cast)
+import numpy as np
 from typing_extensions import Self
-
-from viam.components.pose_tracker import PoseTracker
 from viam.components.camera import Camera
+from viam.components.pose_tracker import PoseTracker
+from viam.errors import ResourceNotFoundError
+from viam.logging import getLogger
+from viam.media.utils.pil import viam_to_pil_image
 from viam.media.video import CameraMimeType, NamedImage, ViamImage
-from viam.proto.common import ResponseMetadata
 from viam.module.module import Module
 from viam.proto.app.robot import ComponentConfig
-from viam.proto.common import Geometry, PointCloudObject, PoseInFrame, Pose, RectangularPrism, ResourceName, Transform, Vector3
-from viam.proto.service.vision import Classification, Detection, Detection3D, GetPropertiesResponse
+from viam.proto.common import (
+    Geometry,
+    PointCloudObject,
+    Pose,
+    PoseInFrame,
+    RectangularPrism,
+    ResourceName,
+    ResponseMetadata,
+    Transform,
+    Vector3,
+)
+from viam.proto.service.vision import (
+    Classification,
+    Detection,
+    Detection3D,
+    GetPropertiesResponse,
+)
 from viam.resource.base import ResourceBase
 from viam.resource.easy_resource import EasyResource
 from viam.resource.registry import Registry
-from viam.resource.types import Model, ModelFamily, RESOURCE_TYPE_COMPONENT, RESOURCE_TYPE_SERVICE
-from viam.errors import ResourceNotFoundError
-from viam.logging import getLogger
+from viam.resource.types import (
+    RESOURCE_TYPE_COMPONENT,
+    RESOURCE_TYPE_SERVICE,
+    Model,
+    ModelFamily,
+)
 from viam.services.vision import CaptureAllResult, Vision
 from viam.spatialmath import RotationMatrix
-from viam.utils import struct_to_dict, ValueTypes
-from viam.media.utils.pil import viam_to_pil_image
-
+from viam.utils import ValueTypes, struct_to_dict
 
 # required attributes
 cam_attr = "camera_name"
@@ -102,7 +117,10 @@ def _detect_apriltags(
     tags = []
     for d in detector.detect(gray):
         tag = SimpleNamespace(
-            tag_id=d["id"], corners=d["lb-rb-rt-lt"], center=d["center"], decision_margin=d["margin"]
+            tag_id=d["id"],
+            corners=d["lb-rb-rt-lt"],
+            center=d["center"],
+            decision_margin=d["margin"],
         )
         if estimate_tag_pose:
             fx, fy, cx, cy = camera_params
@@ -206,9 +224,7 @@ def _tags_to_detections(
         y_min = int(round(float(np.min(ys))))
         x_max = int(round(float(np.max(xs))))
         y_max = int(round(float(np.max(ys))))
-        x_min, y_min, x_max, y_max = _expand_bbox(
-            x_min, y_min, x_max, y_max, bbox_padding_px, width, height
-        )
+        x_min, y_min, x_max, y_max = _expand_bbox(x_min, y_min, x_max, y_max, bbox_padding_px, width, height)
         detections.append(
             Detection(
                 x_min=x_min,
@@ -328,9 +344,9 @@ class Apriltag(PoseTracker, EasyResource):
         *,
         extra: Optional[Mapping[str, Any]] = None,
         timeout: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, PoseInFrame]:
-        """This method returns the poses of the requested Apriltag IDs. 
+        """This method returns the poses of the requested Apriltag IDs.
         If no body names are requested, all detected Apriltags are returned
 
         Args:
@@ -357,7 +373,9 @@ class Apriltag(PoseTracker, EasyResource):
             if len(body_names) == 0 or str(tag.tag_id) in body_names
         }
 
-    async def get_geometries(self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None) -> List[Geometry]:
+    async def get_geometries(
+        self, *, extra: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None
+    ) -> List[Geometry]:
         raise NotImplementedError()
 
     async def do_command(
@@ -365,7 +383,7 @@ class Apriltag(PoseTracker, EasyResource):
         command: Mapping[str, ValueTypes],
         *,
         timeout: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ) -> Mapping[str, ValueTypes]:
         cmd = dict(command)
         if "get_poses" in cmd:
@@ -427,7 +445,10 @@ class ApriltagCamera(Camera, EasyResource):
         try:
             cam_images, metadata = await self.camera.get_images(timeout=timeout)
         except Exception as e:
-            LOGGER.error("ApriltagCamera.get_images: failed to get images from source camera: %s", e)
+            LOGGER.error(
+                "ApriltagCamera.get_images: failed to get images from source camera: %s",
+                e,
+            )
             raise
 
         source = _color_image_from_camera_images(cam_images)
@@ -443,7 +464,15 @@ class ApriltagCamera(Camera, EasyResource):
             cv2.polylines(bgr, [corners], isClosed=True, color=(0, 255, 0), thickness=2)
             center = (int(tag.center[0]), int(tag.center[1]))
             cv2.circle(bgr, center, 5, (0, 0, 255), -1)
-            cv2.putText(bgr, f"ID:{tag.tag_id}", (center[0] + 8, center[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+            cv2.putText(
+                bgr,
+                f"ID:{tag.tag_id}",
+                (center[0] + 8, center[1]),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 255, 0),
+                2,
+            )
 
         _, jpeg_bytes = cv2.imencode(".jpg", bgr)
         named = NamedImage(name=self.name, data=jpeg_bytes.tobytes(), mime_type=CameraMimeType.JPEG)

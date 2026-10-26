@@ -1,10 +1,18 @@
 """Plain-assert checks for src/main.py. Run: .venv/bin/python -m test_main"""
+
 import math
 from types import SimpleNamespace
 
 import numpy as np
 
-from src.main import ApriltagVision, _camera_intrinsics, _detect_apriltags, _parse_optional_tag_width, _tag_pose, _tags_to_detections_3d
+from src.main import (
+    ApriltagVision,
+    _camera_intrinsics,
+    _detect_apriltags,
+    _parse_optional_tag_width,
+    _tag_pose,
+    _tags_to_detections_3d,
+)
 
 
 def close(a: float, b: float) -> bool:
@@ -35,11 +43,9 @@ def test_tag_pose_rotated_90_about_z():
 
 
 def test_tags_to_detections_3d():
-    good = fake_tag(tag_id=7, decision_margin=80.0)   # confidence 1.0
-    weak = fake_tag(tag_id=9, decision_margin=4.0)    # confidence 0.1
-    dets = _tags_to_detections_3d(
-        [good, weak], "my-vision", "my-cam", 50.0, confidence_threshold_pct=0.5
-    )
+    good = fake_tag(tag_id=7, decision_margin=80.0)  # confidence 1.0
+    weak = fake_tag(tag_id=9, decision_margin=4.0)  # confidence 0.1
+    dets = _tags_to_detections_3d([good, weak], "my-vision", "my-cam", 50.0, confidence_threshold_pct=0.5)
     assert len(dets) == 1, dets
 
     d = dets[0]
@@ -100,6 +106,7 @@ def test_real_detector_on_rendered_tag():
 
 def test_camera_intrinsics_rejects_missing():
     import asyncio
+
     from viam.proto.component.camera import IntrinsicParameters
 
     class Cam:
