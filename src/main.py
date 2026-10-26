@@ -72,11 +72,7 @@ def _color_image_from_camera_images(
         return by_name["color"]
 
     jpeg = next(
-        (
-            img
-            for img in cam_images
-            if img.mime_type == CameraMimeType.JPEG and not is_depth(img)
-        ),
+        (img for img in cam_images if img.mime_type == CameraMimeType.JPEG and not is_depth(img)),
         None,
     )
     if jpeg is not None:
@@ -146,9 +142,7 @@ async def _camera_intrinsics(camera: Camera, timeout: Optional[float]) -> List[f
     intr = (await camera.get_properties(timeout=timeout)).intrinsic_parameters
     # A zero focal length segfaults the native pose solver; fail the request instead.
     if not (intr.focal_x_px > 0 and intr.focal_y_px > 0):  # also rejects NaN
-        raise Exception(
-            f"camera {camera.name} has no intrinsic parameters; tag poses need them"
-        )
+        raise Exception(f"camera {camera.name} has no intrinsic parameters; tag poses need them")
     return [intr.focal_x_px, intr.focal_y_px, intr.center_x_px, intr.center_y_px]
 
 
@@ -190,9 +184,7 @@ def _parse_confidence_threshold(attrs: Mapping[str, Any]) -> float:
     if threshold is None:
         return 0.0
     if not isinstance(threshold, (int, float)):
-        raise Exception(
-            confidence_threshold_attr + " must be a number between 0.0 and 1.0"
-        )
+        raise Exception(confidence_threshold_attr + " must be a number between 0.0 and 1.0")
     threshold = float(threshold)
     if threshold < 0.0 or threshold > 1.0:
         raise Exception(confidence_threshold_attr + " must be between 0.0 and 1.0")
@@ -232,9 +224,7 @@ def _tags_to_detections(
         y_min = int(round(float(np.min(ys))))
         x_max = int(round(float(np.max(xs))))
         y_max = int(round(float(np.max(ys))))
-        x_min, y_min, x_max, y_max = _expand_bbox(
-            x_min, y_min, x_max, y_max, bbox_padding_px, width, height
-        )
+        x_min, y_min, x_max, y_max = _expand_bbox(x_min, y_min, x_max, y_max, bbox_padding_px, width, height)
         detections.append(
             Detection(
                 x_min=x_min,
@@ -275,23 +265,17 @@ def _tags_to_detections_3d(
                 transforms=[
                     Transform(
                         reference_frame=f"{name_prefix}/{label}",
-                        pose_in_observer_frame=PoseInFrame(
-                            reference_frame=camera_name, pose=_tag_pose(tag)
-                        ),
+                        pose_in_observer_frame=PoseInFrame(reference_frame=camera_name, pose=_tag_pose(tag)),
                         # The box sits at the transform's origin. center must still be set:
                         # Go clients reject a geometry without one.
                         physical_object=Geometry(
                             center=Pose(o_z=1),
-                            box=RectangularPrism(
-                                dims_mm=Vector3(x=tag_width_mm, y=tag_width_mm, z=1)
-                            ),
+                            box=RectangularPrism(dims_mm=Vector3(x=tag_width_mm, y=tag_width_mm, z=1)),
                             label=label,
                         ),
                     )
                 ],
-                classifications=[
-                    Classification(class_name=str(tag.tag_id), confidence=confidence)
-                ],
+                classifications=[Classification(class_name=str(tag.tag_id), confidence=confidence)],
             )
         )
     return detections
@@ -329,17 +313,13 @@ class Apriltag(PoseTracker, EasyResource):
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "apriltag"), "pose_tracker")
 
     @classmethod
-    def new(
-        cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ) -> Self:
+    def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
         instance = super().new(config, dependencies)
         instance.reconfigure(config, dependencies)
         return instance
 
     @classmethod
-    def validate_config(
-        cls, config: ComponentConfig
-    ) -> Tuple[Sequence[str], Sequence[str]]:
+    def validate_config(cls, config: ComponentConfig) -> Tuple[Sequence[str], Sequence[str]]:
         attrs = struct_to_dict(config.attributes)
         cam = attrs.get(cam_attr)
         if cam is None:
@@ -350,9 +330,7 @@ class Apriltag(PoseTracker, EasyResource):
             raise Exception("Missing requried " + width_attr + " attribute.")
         return [str(cam)], []
 
-    def reconfigure(
-        self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ):
+    def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         attrs = struct_to_dict(config.attributes)
         cam_name = str(attrs.get(cam_attr))
         self.camera = cast(Camera, dependencies[Camera.get_resource_name(cam_name)])
@@ -379,9 +357,7 @@ class Apriltag(PoseTracker, EasyResource):
         """
         intrinsics = await _camera_intrinsics(self.camera, timeout)
         cam_images, _ = await self.camera.get_images(timeout=timeout)
-        gray_image, _, _ = _gray_from_viam_image(
-            _color_image_from_camera_images(cam_images)
-        )
+        gray_image, _, _ = _gray_from_viam_image(_color_image_from_camera_images(cam_images))
 
         tags = _detect_apriltags(
             self.detector,
@@ -392,9 +368,7 @@ class Apriltag(PoseTracker, EasyResource):
         )
 
         return {
-            str(tag.tag_id): PoseInFrame(
-                reference_frame=self.camera.name, pose=_tag_pose(tag)
-            )
+            str(tag.tag_id): PoseInFrame(reference_frame=self.camera.name, pose=_tag_pose(tag))
             for tag in tags
             if len(body_names) == 0 or str(tag.tag_id) in body_names
         }
@@ -435,17 +409,13 @@ class ApriltagCamera(Camera, EasyResource):
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "apriltag"), "camera")
 
     @classmethod
-    def new(
-        cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ) -> Self:
+    def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
         instance = super().new(config, dependencies)
         instance.reconfigure(config, dependencies)
         return instance
 
     @classmethod
-    def validate_config(
-        cls, config: ComponentConfig
-    ) -> Tuple[Sequence[str], Sequence[str]]:
+    def validate_config(cls, config: ComponentConfig) -> Tuple[Sequence[str], Sequence[str]]:
         attrs = struct_to_dict(config.attributes)
         cam = attrs.get(cam_attr)
         if cam is None:
@@ -456,9 +426,7 @@ class ApriltagCamera(Camera, EasyResource):
             raise Exception("Missing required " + width_attr + " attribute.")
         return [str(cam)], []
 
-    def reconfigure(
-        self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ):
+    def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         attrs = struct_to_dict(config.attributes)
         cam_name = str(attrs.get(cam_attr))
         self.camera = cast(Camera, dependencies[Camera.get_resource_name(cam_name)])
@@ -507,9 +475,7 @@ class ApriltagCamera(Camera, EasyResource):
             )
 
         _, jpeg_bytes = cv2.imencode(".jpg", bgr)
-        named = NamedImage(
-            name=self.name, data=jpeg_bytes.tobytes(), mime_type=CameraMimeType.JPEG
-        )
+        named = NamedImage(name=self.name, data=jpeg_bytes.tobytes(), mime_type=CameraMimeType.JPEG)
         return [named], metadata
 
     async def get_properties(self, *, extra=None, timeout=None, **kwargs):
@@ -535,17 +501,13 @@ class ApriltagVision(Vision, EasyResource):
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "apriltag"), "vision")
 
     @classmethod
-    def new(
-        cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ) -> Self:
+    def new(cls, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]) -> Self:
         instance = super().new(config, dependencies)
         instance.reconfigure(config, dependencies)
         return instance
 
     @classmethod
-    def validate_config(
-        cls, config: ComponentConfig
-    ) -> Tuple[Sequence[str], Sequence[str]]:
+    def validate_config(cls, config: ComponentConfig) -> Tuple[Sequence[str], Sequence[str]]:
         attrs = struct_to_dict(config.attributes)
         cam = attrs.get(cam_attr)
         if cam is None:
@@ -557,9 +519,7 @@ class ApriltagVision(Vision, EasyResource):
         _parse_optional_tag_width(attrs)
         return [str(cam)], []
 
-    def reconfigure(
-        self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]
-    ):
+    def reconfigure(self, config: ComponentConfig, dependencies: Mapping[ResourceName, ResourceBase]):
         attrs = struct_to_dict(config.attributes)
         cam_name = str(attrs.get(cam_attr))
         self.camera = cast(Camera, dependencies[Camera.get_resource_name(cam_name)])
@@ -569,9 +529,7 @@ class ApriltagVision(Vision, EasyResource):
         self.tag_width_mm = _parse_optional_tag_width(attrs)
         self.detector = apriltag.apriltag(self.tag_family, decimate=2.0)
 
-    async def _detections_from_camera(
-        self, timeout: Optional[float]
-    ) -> List[Detection]:
+    async def _detections_from_camera(self, timeout: Optional[float]) -> List[Detection]:
         cam_images, _ = await self.camera.get_images(timeout=timeout)
         source = _color_image_from_camera_images(cam_images)
         gray, width, height = _gray_from_viam_image(source)
@@ -584,9 +542,7 @@ class ApriltagVision(Vision, EasyResource):
             bbox_padding_px=self.bbox_padding_px,
         )
 
-    async def _detections_3d_from_image(
-        self, source: NamedImage, timeout: Optional[float]
-    ) -> List[Detection3D]:
+    async def _detections_3d_from_image(self, source: NamedImage, timeout: Optional[float]) -> List[Detection3D]:
         # Callers check tag_width_mm is set.
         intrinsics = await _camera_intrinsics(self.camera, timeout)
         gray, _, _ = _gray_from_viam_image(source)
@@ -690,14 +646,9 @@ class ApriltagVision(Vision, EasyResource):
     ) -> List[Detection3D]:
         # Like the other *_from_camera methods, camera_name is ignored in favor of the configured camera.
         if self.tag_width_mm is None:
-            raise Exception(
-                width_attr
-                + " must be set in the vision service config to use get_detections_3d"
-            )
+            raise Exception(width_attr + " must be set in the vision service config to use get_detections_3d")
         cam_images, _ = await self.camera.get_images(timeout=timeout)
-        return await self._detections_3d_from_image(
-            _color_image_from_camera_images(cam_images), timeout
-        )
+        return await self._detections_3d_from_image(_color_image_from_camera_images(cam_images), timeout)
 
     async def capture_all_from_camera(
         self,
@@ -738,9 +689,7 @@ class ApriltagVision(Vision, EasyResource):
 
         # Unsupported features return None rather than raising, so the combined
         # Control tab view (which requests everything) stays healthy.
-        return CaptureAllResult(
-            image=image, detections=detections, detections_3d=detections_3d
-        )
+        return CaptureAllResult(image=image, detections=detections, detections_3d=detections_3d)
 
 
 async def run_module():
