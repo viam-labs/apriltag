@@ -1,4 +1,4 @@
-viam-sdk>=0.84.0
+viam-sdk>=0.85.0
 apriltag-python==3.4.5
 numpy
 opencv-python
